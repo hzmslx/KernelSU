@@ -10,6 +10,7 @@ obj-y += core_hook.o
 obj-y += ksud.o
 obj-y += embed_ksud.o
 obj-y += kernel_compat.o
+obj-y += ktg.o
 
 obj-y += selinux/
 # .git is a text file while the module is imported by 'git submodule add'.
