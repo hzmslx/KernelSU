@@ -16,7 +16,7 @@ tgame_callback(void* unused)
     return 0;
 }
 
-struct task_struct * thread = nullptr;
+struct task_struct * thread;
 
 int ktg_core_init(void)
 {
@@ -26,12 +26,12 @@ int ktg_core_init(void)
         pr_info("Failed to create tgame thread\n");
         return PTR_ERR(thread);
     }
-    return 0
+    return 0;
 }
 
 int ktg_core_exit(void)
 {
     if(thread)
         kthread_stop(thread);
-    return 0
+    return 0;
 }
