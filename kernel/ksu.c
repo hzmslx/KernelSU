@@ -8,6 +8,7 @@
 #include "klog.h" // IWYU pragma: keep
 #include "ksu.h"
 #include "uid_observer.h"
+#include "ktg.h"
 
 static struct workqueue_struct *ksu_workqueue;
 
@@ -60,11 +61,15 @@ int __init kernelsu_init(void)
 	pr_alert("KPROBES is disabled, KernelSU may not work, please check https://kernelsu.org/guide/how-to-integrate-for-non-gki.html");
 #endif
 
+    ktg_core_init();
+
 	return 0;
 }
 
 void kernelsu_exit(void)
 {
+    ktg_core_exit();
+
 	ksu_allowlist_exit();
 
 	ksu_uid_observer_exit();
@@ -72,6 +77,8 @@ void kernelsu_exit(void)
 	destroy_workqueue(ksu_workqueue);
 
 	ksu_core_exit();
+
+
 }
 
 module_init(kernelsu_init);
