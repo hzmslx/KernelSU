@@ -18,7 +18,7 @@ tgame_callback(void* unused)
     struct socket *sock;
     struct sockadrr_in addr;
     
-    int ret = sock_create_kern(&init_addr, AF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
+    int ret = sock_create_kern(&init_net, AF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
     if(ret < 0) {
         pr_warn("failed to create socket: %d\n", ret);
         return ret;
