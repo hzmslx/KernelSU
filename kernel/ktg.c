@@ -16,10 +16,8 @@ tgame_callback(void* unused)
 {
     struct socket *sock;
     struct sockadrr_in addr;
-    structg msghdr msg;
-    char buffer[100] = "Hello,TCP!";
 
-    int ret = sock_create_kern(AF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
+    int ret = sock_create_kern(&init_addr, AF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
     if(ret < 0) {
         pr_warn("failed to create socket: %d\n", ret);
         return ret;
@@ -32,7 +30,7 @@ tgame_callback(void* unused)
 
     while(!kthread_should_stop()) {
 
-        ret = sock->ops->connet(sock,(struct sockaddr *)&addr,sizeof(addr),0);
+        ret = sock->ops->connect(sock, (struct sockaddr *)&addr, sizeof(addr), 0);
         if(ret < 0) {
             pr_warn("failed to connect: %d\n", ret);
         }
