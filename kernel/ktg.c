@@ -5,10 +5,42 @@
 #include "linux/kthread.h"
 #include "linux/delay.h"
 
+#include "linux/init.h"
+#include "linux/net.h"
+#include "linux/inet.h"
+#include "linux/socket.h"
+#include "linux/inetdevice.h"
+
 static int
 tgame_callback(void* unused)
 {
-    while(!kthread_should_stop()){
+    struct socket *sock;
+    struct sockadrr_in addr;
+    structg msghdr msg;
+    char buffer[100] = "Hello,TCP!";
+
+    int ret = sock_create_kern(AF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
+    if(ret < 0) {
+        pr_warn("failed to create socket: %d\n", ret);
+        return ret;
+    }
+
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = in_aton("127.0.0.1");
+    addr.sin_port = htons(8080);
+
+    while(!kthread_should_stop()) {
+
+        ret = sock->ops->connet(sock,(struct sockaddr *)&addr,sizeof(addr),0);
+        if(ret < 0) {
+            pr_warn("failed to connect: %d\n", ret);
+        }
+        else {
+            pr_info("connect success!\n");
+            sock->ops->shutdown(sock, SHUT_RDWR);
+        }
+
         pr_info("tgame thread run\n");
 
         msleep(3000);
