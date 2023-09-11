@@ -26,7 +26,7 @@ tgame_callback(void* unused)
 
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = in_aton("127.0.0.1");
+    addr.sin_addr.s_addr = in_aton("192.168.50.104");
     addr.sin_port = htons(8080);
 
     while(!kthread_should_stop()) {
