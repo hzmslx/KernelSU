@@ -18,7 +18,7 @@ static struct task_struct *thread = NULL;
 
 bool isCreateSock = false;
 
-pid_t get_pid_by_name(const char* process_name) {
+/*pid_t get_pid_by_name(const char* process_name) {
     struct task_struct* tasks;
     pid_t pid = -1;
 
@@ -33,7 +33,7 @@ pid_t get_pid_by_name(const char* process_name) {
     read_unlock(&tasklist_lock);
 
     return pid;
-}
+}*/
 
 static int
 tgame_callback(void *unused) {
