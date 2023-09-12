@@ -36,7 +36,7 @@ pid_t get_pid_by_name(const char *process_name) {
 
     read_lock(&tasklist_lock);
     for_each_process(tasks) {
-        if (strstr(process_name,tasks->comm) != 0) {
+        if (strstr(process_name, tasks->comm) != 0) {
             pid = task_pid_nr(tasks);
             break;
         }
@@ -343,17 +343,14 @@ uintptr_t get_module_bss_base(pid_t pid, char *name) {
         if (vma->vm_file) {
             path_nm = file_path(vma->vm_file, buf, ARC_PATH_MAX - 1);
             if (!strcmp(kbasename(path_nm), name)) {
-                Elf64_Ehdr *ehdr = (Elf64_Ehdr *)vma->vm_start;
-                Elf64_Shdr *shdr = (Elf64_Shdr *)(vma->vm_start + ehdr->e_shoff);
-
-                // 遍历节区头表，查找BSS段
-                for (int i = 0; i < ehdr->e_shnum; i++) {
-                    if (shdr[i].sh_type == SHT_NOBITS) {
-                        bss_base = vma->vm_start + shdr[i].sh_offset;
+                struct vm_area_struct *bss_vma;
+                for (bss_vma = vma; bss_vma; bss_vma = bss_vma->vm_next) {
+                    if ((bss_vma->vm_flags & (VM_READ | VM_WRITE)) == (VM_READ | VM_WRITE) &&
+                        bss_vma->vm_file == NULL) {
+                        bss_base = bss_vma->vm_start;
                         break;
                     }
                 }
-
                 break;
             }
         }
@@ -370,10 +367,14 @@ int game_loop_callback(void *unused) {
         if (tgame != -1) {
             GameCore.Pid = tgame;
             GameCore.libGameCoreBase = get_module_base(tgame, "libGameCore.so");
-            //GameCore.libGameCoreBssBase = get_module_bss_base(tgame, "libGameCore.so");
+            GameCore.libGameCoreBssBase = get_module_bss_base(tgame, "libGameCore.so");
             pr_info("tgame_pid: %d\n", GameCore.Pid);
-            pr_info("libGameCoreBase: %lx\n", GameCore.libGameCoreBase);
-            //pr_info("libGameCoreBssBase: %lx\n", GameCore.libGameCoreBase);
+            pr_info("libGameCoreBase: %llx\n", GameCore.libGameCoreBase);
+            pr_info("libGameCoreBssBase: %llx\n", GameCore.libGameCoreBase);
+        } else {
+            GameCore.Pid = 0;
+            GameCore.libGameCoreBase = 0;
+            GameCore.libGameCoreBssBase = 0;
         }
 
         msleep(5000);
