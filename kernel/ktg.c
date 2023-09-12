@@ -70,12 +70,13 @@ pid_t get_pid_by_name(const char *process_name) {
 struct Entity {
     short obj_id;
     char camp;
-    int x;
-    int y;
+    float x;
+    float y;
 };
 
 struct GameCorePacket {
     char PacketLen;
+    int Pid;
     struct Entity LocalPlayer;
 } GameCore;
 
@@ -162,6 +163,12 @@ int tcp_server_listen(void *unused) {
                                     memset(send_buf, 'a', 1024);
                                     memset(&send_msg, 0, sizeof(send_msg));
                                     memset(&send_vec, 0, sizeof(send_vec));
+
+                                    GameCore.PacketLen = sizeof(GameCore) - 1;
+                                    GameCore.LocalPlayer.camp = 2;
+                                    GameCore.LocalPlayer.x = 41.7f;
+                                    GameCore.LocalPlayer.y = 41.7f;
+
                                     send_vec.iov_base = &GameCore;
                                     send_vec.iov_len = sizeof(GameCore);
                                     int send_err = kernel_sendmsg(remote_socket, &send_msg, &send_vec, 1,
@@ -271,6 +278,7 @@ int game_loop_callback(void *unused) {
     while (!kthread_should_stop()) {
         pid_t tgame = get_pid_by_name("com.tencent.tmgp.sgame");
         if (tgame != -1) {
+            GameCore.Pid = tgame;
             pr_info("tgame_pid: %d\n", tgame);
         }
 
