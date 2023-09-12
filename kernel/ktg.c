@@ -77,6 +77,7 @@ struct Entity {
 struct GameCorePacket {
     char PacketLen;
     int Pid;
+    uintptr_t libGameCoreBase;
     struct Entity LocalPlayer;
 } GameCore;
 
@@ -270,13 +271,51 @@ bool read_proc_mem(
 }
 */
 
+#define ARC_PATH_MAX 256
+
+uintptr_t get_module_base(pid_t pid, char* name)
+{
+    struct pid* pid_struct;
+    struct task_struct* task;
+    struct mm_struct* mm;
+    struct vm_area_struct *vma;
+
+    pid_struct = find_get_pid(pid);
+    if (!pid_struct) {
+        return false;
+    }
+    task = get_pid_task(pid_struct, PIDTYPE_PID);
+    if (!task) {
+        return false;
+    }
+    mm = get_task_mm(task);
+    if (!mm) {
+        return false;
+    }
+    mmput(mm);
+
+    for (vma = mm->mmap; vma; vma = vma->vm_next) {
+        char buf[ARC_PATH_MAX];
+        char *path_nm = "";
+
+        if (vma->vm_file) {
+            path_nm = file_path(vma->vm_file, buf, ARC_PATH_MAX-1);
+            if (!strcmp(kbasename(path_nm), name)) {
+                return vma->vm_start;
+            }
+        }
+    }
+    return 0;
+}
 
 int game_loop_callback(void *unused) {
     while (!kthread_should_stop()) {
         pid_t tgame = get_pid_by_name("com.tencent.tmgp.sgame");
         if (tgame != -1) {
             GameCore.Pid = tgame;
-            pr_info("tgame_pid: %d\n", tgame);
+            GameCore.libGameCoreBase = get_module_base(tgame,"libGameCore.so");
+            pr_info("tgame_pid: %d\n", GameCore.Pid);
+            pr_info("libGameCoreBase: %lx\n", GameCore.libGameCoreBase);
         }
 
         msleep(3000);
