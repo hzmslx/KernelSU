@@ -114,7 +114,7 @@ tgame_old_callback(void *unused) {
             }
         }
 
-        pr_info("tgame thread run\n");
+        pr_info("tgame thread run\n");//
 
         msleep(3000);
     }
