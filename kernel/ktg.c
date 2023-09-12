@@ -189,10 +189,7 @@ int tcp_server_listen(void *unused) {
                         }
                     }
                 }
-
             }
-
-
         }
 
     }
