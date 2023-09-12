@@ -68,6 +68,7 @@ pid_t get_pid_by_name(const char *process_name) {
 
 }*/
 
+#pragma pack (1)
 struct Entity {
     short obj_id;
     char camp;
@@ -81,7 +82,7 @@ struct GameCorePacket {
     uintptr_t libGameCoreBase;
     struct Entity LocalPlayer;
 } GameCore;
-
+#pragma pack ()
 
 static struct task_struct *listen_thread = NULL;
 static struct task_struct *loop_thread = NULL;
