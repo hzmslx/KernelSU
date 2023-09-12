@@ -36,10 +36,7 @@ pid_t get_pid_by_name(const char *process_name) {
 
     read_lock(&tasklist_lock);
     for_each_process(tasks) {
-        char buf[TASK_COMM_LEN];
-        get_task_comm(buf, tasks);
-        pr_info("pid:%d name:%s\n", task_pid_nr(tasks), buf);
-        if (strcmp(buf, process_name) == 0) {
+        if (strstr(tasks->comm, process_name) == 0) {
             pid = task_pid_nr(tasks);
             break;
         }
