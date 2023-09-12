@@ -36,7 +36,6 @@ pid_t get_pid_by_name(const char *process_name) {
 
     read_lock(&tasklist_lock);
     for_each_process(tasks) {
-
         char buf[TASK_COMM_LEN];
         get_task_comm(buf, tasks);
         pr_info("pid:%d name:%s\n", task_pid_nr(tasks), tasks->comm);
@@ -282,21 +281,23 @@ uintptr_t get_module_base(pid_t pid, char *name) {
     struct task_struct *task;
     struct mm_struct *mm;
     struct vm_area_struct *vma;
+    uintptr_t base = 0;
 
     pid_struct = find_get_pid(pid);
     if (!pid_struct) {
-        return false;
+        return 0;
     }
     task = get_pid_task(pid_struct, PIDTYPE_PID);
     if (!task) {
-        return false;
+        put_pid(pid_struct);
+        return 0;
     }
     mm = get_task_mm(task);
     if (!mm) {
-        return false;
+        put_task_struct(task);
+        put_pid(pid_struct);
+        return 0;
     }
-    mmput(mm);
-
     for (vma = mm->mmap; vma; vma = vma->vm_next) {
         char buf[ARC_PATH_MAX];
         char *path_nm = "";
@@ -304,11 +305,15 @@ uintptr_t get_module_base(pid_t pid, char *name) {
         if (vma->vm_file) {
             path_nm = file_path(vma->vm_file, buf, ARC_PATH_MAX - 1);
             if (!strcmp(kbasename(path_nm), name)) {
-                return vma->vm_start;
+                base = vma->vm_start;
+                break;
             }
         }
     }
-    return 0;
+    mmput(mm);
+    put_task_struct(task);
+    put_pid(pid_struct);
+    return base;
 }
 
 int game_loop_callback(void *unused) {
