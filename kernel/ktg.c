@@ -11,16 +11,14 @@
 #include "linux/socket.h"
 #include "linux/in.h"
 
-// get pid header
+// get pid
 #include "linux/sched/signal.h"
-#include "linux/pid_namespace.h"
-
 
 static struct task_struct *thread = NULL;
 
 bool isCreateSock = false;
 
-/*pid_t get_pid_by_name(const char* process_name) {
+pid_t get_pid_by_name(const char* process_name) {
     struct task_struct* tasks;
     pid_t pid = -1;
 
@@ -35,7 +33,7 @@ bool isCreateSock = false;
     read_unlock(&tasklist_lock);
 
     return pid;
-}*/
+}
 
 static int
 tgame_callback(void *unused) {
@@ -86,6 +84,16 @@ tgame_callback(void *unused) {
 }
 
 int ktg_core_init(void) {
+
+    struct socket *sock = NULL;
+
+    int ret = sock_create_kern(&init_net, AF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
+    if (ret < 0) {
+        pr_warn("failed to create socket: %d\n", ret);
+    } else {
+        pr_info("create kernel socket success!\n");
+    }
+
     // 创建线程并启动
     thread = kthread_run(tgame_callback, NULL, "ktg");
     if (IS_ERR(thread)) {
