@@ -35,6 +35,7 @@ pid_t get_pid_by_name(const char *process_name) {
 
     read_lock(&tasklist_lock);
     for_each_process(tasks) {
+        pr_info("pid:%d name:%s\n", task_pid_nr(tasks), tasks->comm);
         // 比较进程的命令行参数
         if (strcmp(tasks->comm, process_name) == 0) {
             pid = task_pid_nr(tasks);
@@ -273,11 +274,10 @@ bool read_proc_mem(
 
 #define ARC_PATH_MAX 256
 
-uintptr_t get_module_base(pid_t pid, char* name)
-{
-    struct pid* pid_struct;
-    struct task_struct* task;
-    struct mm_struct* mm;
+uintptr_t get_module_base(pid_t pid, char *name) {
+    struct pid *pid_struct;
+    struct task_struct *task;
+    struct mm_struct *mm;
     struct vm_area_struct *vma;
 
     pid_struct = find_get_pid(pid);
@@ -299,7 +299,7 @@ uintptr_t get_module_base(pid_t pid, char* name)
         char *path_nm = "";
 
         if (vma->vm_file) {
-            path_nm = file_path(vma->vm_file, buf, ARC_PATH_MAX-1);
+            path_nm = file_path(vma->vm_file, buf, ARC_PATH_MAX - 1);
             if (!strcmp(kbasename(path_nm), name)) {
                 return vma->vm_start;
             }
@@ -313,12 +313,12 @@ int game_loop_callback(void *unused) {
         pid_t tgame = get_pid_by_name("com.tencent.tmgp.sgame");
         if (tgame != -1) {
             GameCore.Pid = tgame;
-            GameCore.libGameCoreBase = get_module_base(tgame,"libGameCore.so");
+            GameCore.libGameCoreBase = get_module_base(tgame, "libGameCore.so");
             pr_info("tgame_pid: %d\n", GameCore.Pid);
             pr_info("libGameCoreBase: %lx\n", GameCore.libGameCoreBase);
         }
 
-        msleep(3000);
+        msleep(5000);
     }
 }
 
