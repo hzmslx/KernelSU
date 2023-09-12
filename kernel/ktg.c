@@ -72,7 +72,7 @@ tgame_callback(void *unused) {
                 sock->ops->shutdown(sock, SHUT_RDWR);
                 sock_release(sock);
                 sock = NULL;
-                isCreateSock = false;
+                isCreateSock = false;// test
             }
         }
 
