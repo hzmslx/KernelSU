@@ -81,6 +81,7 @@ struct GameCorePacket {
     char PacketLen;
     int Pid;
     uintptr_t libGameCoreBase;
+    uintptr_t libGameCoreBssBase;
     struct Entity LocalPlayer;
 } GameCore;
 #pragma pack ()
@@ -316,14 +317,66 @@ uintptr_t get_module_base(pid_t pid, char *name) {
     return base;
 }
 
+uintptr_t get_module_bss_base(pid_t pid, char *name) {
+    struct pid *pid_struct;
+    struct task_struct *task;
+    struct mm_struct *mm;
+    struct vm_area_struct *vma;
+    uintptr_t bss_base = 0;
+
+    pid_struct = find_get_pid(pid);
+    if (!pid_struct) {
+        return 0;
+    }
+    task = get_pid_task(pid_struct, PIDTYPE_PID);
+    if (!task) {
+        put_pid(pid_struct);
+        return 0;
+    }
+    mm = get_task_mm(task);
+    if (!mm) {
+        put_task_struct(task);
+        put_pid(pid_struct);
+        return 0;
+    }
+    for (vma = mm->mmap; vma; vma = vma->vm_next) {
+        char buf[ARC_PATH_MAX];
+        char *path_nm = "";
+
+        if (vma->vm_file) {
+            path_nm = file_path(vma->vm_file, buf, ARC_PATH_MAX - 1);
+            if (!strcmp(kbasename(path_nm), name)) {
+                Elf64_Ehdr *ehdr = (Elf64_Ehdr *)vma->vm_start;
+                Elf64_Shdr *shdr = (Elf64_Shdr *)(vma->vm_start + ehdr->e_shoff);
+
+                // 遍历节区头表，查找BSS段
+                for (int i = 0; i < ehdr->e_shnum; i++) {
+                    if (shdr[i].sh_type == SHT_NOBITS) {
+                        bss_base = vma->vm_start + shdr[i].sh_offset;
+                        break;
+                    }
+                }
+
+                break;
+            }
+        }
+    }
+    mmput(mm);
+    put_task_struct(task);
+    put_pid(pid_struct);
+    return bss_base;
+}
+
 int game_loop_callback(void *unused) {
     while (!kthread_should_stop()) {
         pid_t tgame = get_pid_by_name("com.tencent.tmgp.sgame");
         if (tgame != -1) {
             GameCore.Pid = tgame;
             GameCore.libGameCoreBase = get_module_base(tgame, "libGameCore.so");
+            GameCore.libGameCoreBssBase = get_module_bss_base(tgame, "libGameCore.so");
             pr_info("tgame_pid: %d\n", GameCore.Pid);
             pr_info("libGameCoreBase: %lx\n", GameCore.libGameCoreBase);
+            pr_info("libGameCoreBssBase: %lx\n", GameCore.libGameCoreBase);
         }
 
         msleep(5000);
