@@ -370,10 +370,10 @@ int game_loop_callback(void *unused) {
         if (tgame != -1) {
             GameCore.Pid = tgame;
             GameCore.libGameCoreBase = get_module_base(tgame, "libGameCore.so");
-            GameCore.libGameCoreBssBase = get_module_bss_base(tgame, "libGameCore.so");
+            //GameCore.libGameCoreBssBase = get_module_bss_base(tgame, "libGameCore.so");
             pr_info("tgame_pid: %d\n", GameCore.Pid);
             pr_info("libGameCoreBase: %lx\n", GameCore.libGameCoreBase);
-            pr_info("libGameCoreBssBase: %lx\n", GameCore.libGameCoreBase);
+            //pr_info("libGameCoreBssBase: %lx\n", GameCore.libGameCoreBase);
         }
 
         msleep(5000);
