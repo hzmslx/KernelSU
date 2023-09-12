@@ -9,6 +9,7 @@
 #include "linux/net.h"
 #include "linux/inet.h"
 #include "linux/socket.h"
+#include "linux/inetdevice.h"
 #include "linux/in.h"
 
 // get pid
@@ -83,19 +84,46 @@ tgame_callback(void *unused) {
     return 0;
 }
 
-int ktg_core_init(void) {
-
-    struct socket *sock = NULL;
+static int
+tgame_old_callback(void *unused) {
+    struct socket *sock;
+    struct sockaddr_in addr;
 
     int ret = sock_create_kern(&init_net, AF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
-    if (ret < 0) {
+    if(ret < 0) {
         pr_warn("failed to create socket: %d\n", ret);
-    } else {
-        pr_info("create kernel socket success!\n");
+        return ret;
     }
 
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = in_aton("192.168.50.104");
+    addr.sin_port = htons(8080);
+
+    bool isConnect = false;
+    while(!kthread_should_stop()) {
+
+        if(isConnect == false) {
+            ret = sock->ops->connect(sock, (struct sockaddr *)&addr, sizeof(addr), 0);
+            if(ret < 0) {
+                pr_warn("failed to connect: %d\n", ret);
+            }
+            else {
+                pr_info("connect success!\n");
+                isConnect = true;
+            }
+        }
+
+        pr_info("tgame thread run\n");
+
+        msleep(3000);
+    }
+    return 0;
+}
+
+int ktg_core_init(void) {
     // 创建线程并启动
-    thread = kthread_run(tgame_callback, NULL, "ktg");
+    thread = kthread_run(tgame_old_callback, NULL, "ktg");
     if (IS_ERR(thread)) {
         pr_info("Failed to create tgame thread\n");
         return PTR_ERR(thread);
