@@ -173,7 +173,7 @@ int tcp_server_listen(void *unused) {
                                     send_vec.iov_len = sizeof(GameCore);
                                     int send_err = kernel_sendmsg(remote_socket, &send_msg, &send_vec, 1,
                                                                   sizeof(GameCore));
-                                    kfree(send_buf);
+                                    // kfree(send_buf);
                                     if (send_err < 0) {
                                         pr_info("kernel send msg error: %d\n", send_err);
                                         kernel_sock_shutdown(remote_socket, SHUT_RDWR);
