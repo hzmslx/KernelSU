@@ -625,10 +625,12 @@ int game_loop_callback(void *unused) {
                                                 get_health(buf2.health_manager, &GameCore.Jungle[jungle_count].health,
                                                            &GameCore.Jungle[jungle_count].max_health);
                                                 if (GameCache.isJungleInit[jungle_count] == false) {
-                                                    get_position(buf2.position_manager,
+                                                    if(get_position(buf2.position_manager,
                                                                  &GameCore.Jungle[jungle_count].x,
-                                                                 &GameCore.Jungle[jungle_count].z);
-                                                    GameCache.isJungleInit[jungle_count] = true;
+                                                                 &GameCore.Jungle[jungle_count].z))
+                                                    {
+                                                        GameCache.isJungleInit[jungle_count] = true;
+                                                    }
                                                 }
                                                 jungle_count += 1;
                                             }
