@@ -178,7 +178,7 @@ int tcp_server_listen(void *unused) {
                                         sock_release(remote_socket);
                                         break;
                                     }
-                                    msleep(500);
+                                    msleep(10);
                                 }
                             } else {
                                 kernel_sock_shutdown(remote_socket, SHUT_RDWR);
@@ -480,7 +480,7 @@ bool get_position(uintptr_t manager, int *x, int *z) {
             uintptr_t temp = 0;
             result = read_process_memory(GameContext.pid, manager + 0x30, &temp, sizeof(uintptr_t));
             if (result && temp > 0) {
-                result = read_process_memory(GameContext.pid, temp + 0x02, &eax, 2);
+                read_process_memory(GameContext.pid, temp + 0x02, &eax, 2);
             }
         }
         uintptr_t ebx = 0;
@@ -536,6 +536,7 @@ int game_loop_callback(void *unused) {
         } else {
             GameContext.pid = 0;
             GameContext.bss_base = 0;
+            memset(&GameCore,0, sizeof(GameCore));
         }
 
         msleep(5000);
