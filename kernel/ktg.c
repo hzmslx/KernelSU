@@ -373,7 +373,6 @@ struct GameObjectBuffer {
     union {
         MEMBER_N(short obj_id, 0x28);
         MEMBER_N(char camp, 0x34);
-        MEMBER_N(uintptr_t component, 0x10);
         MEMBER_N(uintptr_t health_manager, 0x148);
         MEMBER_N(uintptr_t position_manager, 0x1F0);
     };
@@ -492,7 +491,13 @@ bool get_obj(uintptr_t object, struct GameObjectBuffer *out) {
         uintptr_t component = 0;
         result = read_process_memory(GameContext.pid, object + 0x10, &component, sizeof(component));
         if (result) {
-            result = read_process_memory(GameContext.pid, component, out, sizeof(*out));
+            result = read_process_memory(GameContext.pid, component + 0x28, &out->obj_id, sizeof(out->obj_id));
+            if (result) {
+                result = read_process_memory(GameContext.pid, component + 0x148, &out->health_manager, sizeof(out->health_manager));
+                if (result) {
+                    result = read_process_memory(GameContext.pid, component + 0x1F0, &out->position_manager, sizeof(out->position_manager));
+                }
+            }
         }
     }
     return result;
