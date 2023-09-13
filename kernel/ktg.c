@@ -75,7 +75,7 @@ struct Entity {
 };
 
 struct GameCorePacket {
-    char PacketLen;
+    int PacketLen;
     bool isPlayerAllInit;
     bool isJungleAllInit;
     struct Entity LocalPlayer;
@@ -642,28 +642,28 @@ int game_loop_callback(void *unused) {
                                     GameCache.isJungleAllInit = true;
                                 }
                             } else {
-                                for (int i = 0; i < 10; i++) {
-                                    uintptr_t entity = GameCache.Player[i];
+                                for (int j = 0; j < 10; j++) {
+                                    uintptr_t entity = GameCache.Player[j];
                                     if (entity) {
                                         struct GameObjectBuffer buf2;
                                         if (get_obj(entity, &buf2)) {
-                                            GameCore.Player[i].obj_id = buf2.obj_id;
-                                            GameCore.Player[i].camp = buf2.camp;
-                                            get_health(buf2.health_manager, &GameCore.Player[i].health,
-                                                       &GameCore.Player[i].max_health);
-                                            get_position(buf2.position_manager, &GameCore.Player[i].x,
-                                                         &GameCore.Player[i].z);
+                                            GameCore.Player[j].obj_id = buf2.obj_id;
+                                            GameCore.Player[j].camp = buf2.camp;
+                                            get_health(buf2.health_manager, &GameCore.Player[j].health,
+                                                       &GameCore.Player[j].max_health);
+                                            get_position(buf2.position_manager, &GameCore.Player[j].x,
+                                                         &GameCore.Player[j].z);
                                         }
                                     }
                                 }
-                                for (int i = 0; i < 13; i++) {
-                                    uintptr_t entity = GameCache.Jungle[i];
+                                for (int k = 0; k < 13; k++) {
+                                    uintptr_t entity = GameCache.Jungle[k];
                                     if (entity) {
                                         struct GameObjectBuffer buf2;
                                         if (get_obj(entity, &buf2)) {
-                                            GameCore.Jungle[i].obj_id = buf2.obj_id;
-                                            get_health(buf2.health_manager, &GameCore.Jungle[i].health,
-                                                       &GameCore.Jungle[i].max_health);
+                                            GameCore.Jungle[k].obj_id = buf2.obj_id;
+                                            get_health(buf2.health_manager, &GameCore.Jungle[k].health,
+                                                       &GameCore.Jungle[k].max_health);
                                         }
                                     }
                                 }
