@@ -70,15 +70,14 @@ pid_t get_pid_by_name(const char *process_name) {
 struct Entity {
     short obj_id;
     char camp;
-    float x;
-    float y;
+    int health;
+    int max_health;
+    int x;
+    int z;
 };
 
 struct GameCorePacket {
     char PacketLen;
-    int Pid;
-    uintptr_t libGameCoreBase;
-    uintptr_t libGameCoreBssBase;
     struct Entity LocalPlayer;
 } GameCore;
 #pragma pack ()
@@ -167,9 +166,6 @@ int tcp_server_listen(void *unused) {
                                     memset(&send_vec, 0, sizeof(send_vec));
 
                                     GameCore.PacketLen = sizeof(GameCore) - 1;
-                                    GameCore.LocalPlayer.camp = 2;
-                                    GameCore.LocalPlayer.x = 41.7f;
-                                    GameCore.LocalPlayer.y = 41.7f;
 
                                     send_vec.iov_base = &GameCore;
                                     send_vec.iov_len = sizeof(GameCore);
@@ -196,81 +192,6 @@ int tcp_server_listen(void *unused) {
 
     }
 }
-
-/*
-phys_addr_t translate_linear_address(struct mm_struct* mm, uintptr_t va) {
-
-    pgd_t *pgd;
-    pmd_t *pmd;
-    pte_t *pte;
-    pud_t *pud;
-
-    phys_addr_t page_addr;
-    uintptr_t page_offset;
-
-    pgd = pgd_offset(mm, va);
-    if(pgd_none(*pgd) || pgd_bad(*pgd)) {
-        return 0;
-    }
-    pud = pud_offset(pgd,va);
-    if(pud_none(*pud) || pud_bad(*pud)) {
-        return 0;
-    }
-    pmd = pmd_offset(pud,va);
-    if(pmd_none(*pmd)) {
-        return 0;
-    }
-    pte = pte_offset_kernel(pmd,va);
-    if(pte_none(*pte)) {
-        return 0;
-    }
-    if(!pte_present(*pte)) {
-        return 0;
-    }
-    //页物理地址
-    page_addr = (phys_addr_t)(pte_pfn(*pte) << PAGE_SHIFT);
-    //页内偏移
-    page_offset = va & (PAGE_SIZE-1);
-
-    return page_addr + page_offset;
-}
-
-#ifndef ARCH_HAS_VALID_PHYS_ADDR_RANGE
-static inline int valid_phys_addr_range(phys_addr_t addr, size_t count) {
-    return addr + count <= __pa(high_memory);
-}
-#endif
-
-bool read_proc_mem(
-        pid_t pid,
-        uintptr_t addr,
-        void *buffer,
-        size_t size) {
-
-    struct task_struct *task;
-    struct mm_struct *mm;
-    struct pid *pid_struct;
-    phys_addr_t pa;
-
-    pid_struct = find_get_pid(pid);
-    if (!pid_struct) {
-        return false;
-    }
-    task = get_pid_task(pid_struct, PIDTYPE_PID);
-    if (!task) {
-        return false;
-    }
-    mm = get_task_mm(task);
-    if (!mm) {
-        return false;
-    }
-    mmput(mm);
-    pa = translate_linear_address(mm, addr);
-    if (!pa) {
-        return false;
-    }
-}
-*/
 
 #define ARC_PATH_MAX 256
 
@@ -361,20 +282,260 @@ uintptr_t get_module_bss_base(pid_t pid, char *name) {
     return bss_base;
 }
 
+phys_addr_t translate_linear_address(struct mm_struct *mm, uintptr_t va) {
+    pgd_t *pgd;
+    pud_t *pud;
+    pmd_t *pmd;
+    pte_t *pte;
+
+    phys_addr_t page_addr;
+    uintptr_t page_offset;
+
+    pgd = pgd_offset(mm, va);
+    if (pgd_none(*pgd) || pgd_bad(*pgd))
+        return 0;
+
+    pud = pud_offset(pgd, va);
+    if (pud_none(*pgd) || pud_bad(*pgd))
+        return 0;
+
+    pmd = pmd_offset(pud, va);
+    if (pmd_none(*pgd) || pmd_bad(*pgd))
+        return 0;
+
+    pte = pte_offset_kernel(pmd, va);
+    if (pte_none(*pte) || !pte_present(*pte))
+        return 0;
+
+    page_addr = (phys_addr_t) (pte_pfn(*pte) << PAGE_SHIFT);
+    page_offset = va & (PAGE_SIZE - 1);
+    return page_addr + page_offset;
+}
+
+bool read_physical_address(phys_addr_t pa, void *buffer, size_t size) {
+    void *mapped;
+
+    if (!pfn_valid(__phys_to_pfn(pa))) {
+        return false;
+    }
+    if (!valid_phys_addr_range(pa, size)) {
+        return false;
+    }
+    mapped = ioremap_cache(pa, size);
+    if (!mapped) {
+        return false;
+    }
+    memcpy(buffer, mapped, size);
+    iounmap(mapped);
+    return true;
+}
+
+bool read_process_memory(
+        pid_t pid,
+        uintptr_t addr,
+        void *buffer,
+        size_t size) {
+
+    struct task_struct *task;
+    struct mm_struct *mm;
+    struct pid *pid_struct;
+    phys_addr_t pa;
+
+    pid_struct = find_get_pid(pid);
+    if (!pid_struct) {
+        return false;
+    }
+    task = get_pid_task(pid_struct, PIDTYPE_PID);
+    if (!task) {
+        put_pid(pid_struct);
+        return false;
+    }
+    mm = get_task_mm(task);
+    put_task_struct(task);
+    if (!mm) {
+        put_pid(pid_struct);
+        return false;
+    }
+    pa = translate_linear_address(mm, addr);
+    mmput(mm);
+    put_pid(pid_struct);
+
+    if (!pa) {
+        return false;
+    }
+    return read_physical_address(pa, buffer, size);
+}
+
+#define STR_MERGE_IMPL(x, y)                x##y
+#define STR_MERGE(x, y)                        STR_MERGE_IMPL(x,y)
+#define MAKE_PAD(size)                      uint8_t STR_MERGE(pad_, __COUNTER__) [ size ]
+#define MEMBER_N(x, offset)                    struct { MAKE_PAD(offset); x;}
+
+struct GameObjectBuffer {
+    union {
+        MEMBER_N(short obj_id, 0x28);
+        MEMBER_N(char camp, 0x34);
+        MEMBER_N(uintptr_t component, 0x10);
+        MEMBER_N(uintptr_t health_manager, 0x148);
+        MEMBER_N(uintptr_t position_manager, 0x1F0);
+    };
+};
+
+struct GameObject {
+    short obj_id;
+    char camp;
+    int health;
+    int max_health;
+    int x;
+    int y;
+    int z;
+};
+
+struct GameContext {
+    int pid;
+    uintptr_t bss_base;
+    uintptr_t context;
+    uintptr_t entity_entry;
+    uintptr_t local_player;
+} GameContext;
+
+uintptr_t get_entity(uintptr_t entry) {
+    int idx = 0;
+    bool b_read = read_process_memory(GameContext.pid, entry + 0x10, &idx, sizeof(int));
+    if (!b_read || idx < 0)
+        return false;
+
+    uintptr_t entity = 0;
+    b_read = read_process_memory(GameContext.pid, GameContext.entity_entry + idx * 0x18, &entity, sizeof(uintptr_t));
+    if (!b_read || idx < 0)
+        return false;
+
+    return entity;
+}
+
+bool get_context() {
+    if (GameContext.pid > 0) {
+        uintptr_t context = 0;
+        bool b_read = read_process_memory(GameContext.pid, GameContext.bss_base + 0xE30, &context, sizeof(uintptr_t));
+        if (!b_read || !context)
+            return false;
+
+        uintptr_t ptr = 0;
+        b_read = read_process_memory(GameContext.pid, context + 0x2C0, &ptr, sizeof(uintptr_t));
+        if (!b_read || !ptr)
+            return false;
+
+        b_read = read_process_memory(GameContext.pid, ptr + 0x48, &ptr, sizeof(uintptr_t));
+        if (!b_read || !ptr)
+            return false;
+
+        uintptr_t localplayer_entry = 0;
+        b_read = read_process_memory(GameContext.pid, ptr + 0xD8, &localplayer_entry, sizeof(uintptr_t));
+        if (!b_read || !ptr)
+            return false;
+
+        uintptr_t entity_entry = 0;
+        b_read = read_process_memory(GameContext.pid, ptr + 0x18, &entity_entry, sizeof(uintptr_t));
+        if (!b_read || !ptr)
+            return false;
+
+        GameContext.context = context;
+        GameContext.entity_entry = entity_entry;
+        GameContext.local_player = get_entity(localplayer_entry);
+        return true;
+    }
+    return false;
+}
+
+bool get_obj(uintptr_t object, struct GameObjectBuffer *out) {
+    bool result = false;
+    if (out) {
+        uintptr_t component = 0;
+        result = read_process_memory(GameContext.pid, object + 0x10, &component, sizeof(component));
+        if (result) {
+            result = read_process_memory(GameContext.pid, component, out, sizeof(*out));
+        }
+    }
+    return result;
+}
+
+bool get_health(uintptr_t manager, int *health, int *max_health) {
+    bool result = false;
+    if (health > 0 && max_health > 0) {
+        result = read_process_memory(GameContext.pid, manager + 0xA0, health, sizeof(int));
+        if (result) {
+            result = read_process_memory(GameContext.pid, manager + 0xA8, max_health, sizeof(int));
+        }
+    }
+    return result;
+}
+
+bool get_position(uintptr_t manager, int *x, int *z) {
+    bool result = false;
+    if (x > 0 && z > 0) {
+        int ebx_050h = 0;
+        int eax = 0;
+        result = read_process_memory(GameContext.pid, manager + 0x50, &ebx_050h, sizeof(int));
+        if (result && ebx_050h != 0) {
+            uintptr_t temp = 0;
+            result = read_process_memory(GameContext.pid, manager + 0x30, &temp, sizeof(uintptr_t));
+            if (result && temp > 0) {
+                result = read_process_memory(GameContext.pid, temp + 0x02, &eax, 2);
+            }
+        }
+        uintptr_t ebx = 0;
+        result = read_process_memory(GameContext.pid, manager + 0x10, &ebx, sizeof(uintptr_t));
+        if (result && ebx > 0) {
+            uintptr_t eax_t = 0;
+            eax_t = ebx + eax * 0x18;
+            result = read_process_memory(GameContext.pid, eax_t + 0x00, &eax_t, sizeof(uintptr_t));
+            if (result && eax_t > 0) {
+                result = read_process_memory(GameContext.pid, eax_t + 0x10, &eax_t, sizeof(uintptr_t));
+                if(result) {
+                    struct Vec3{
+                        int x;
+                        int y;
+                        int z;
+                    }pos;
+                    result = read_process_memory(GameContext.pid, eax_t, &pos, sizeof(pos));
+                    if(result) {
+                        *x = pos.x;
+                        *z = pos.z;
+                    }
+                }
+            }
+        }
+    }
+    return result;
+}
+
 int game_loop_callback(void *unused) {
     while (!kthread_should_stop()) {
         pid_t tgame = get_pid_by_name("com.tencent.tmgp.sgame");
         if (tgame != -1) {
-            GameCore.Pid = tgame;
-            GameCore.libGameCoreBase = get_module_base(tgame, "libGameCore.so");
-            GameCore.libGameCoreBssBase = get_module_bss_base(tgame, "libGameCore.so");
-            pr_info("tgame_pid: %d\n", GameCore.Pid);
-            pr_info("libGameCoreBase: %llx\n", GameCore.libGameCoreBase);
-            pr_info("libGameCoreBssBase: %llx\n", GameCore.libGameCoreBase);
+            GameContext.pid = tgame;
+            GameContext.bss_base = get_module_bss_base(tgame, "libGameCore.so");
+            if (GameContext.bss_base) {
+                if (get_context()) {
+                    struct GameObjectBuffer buf;
+                    memset(&buf, 0, sizeof(buf));
+                    if (get_obj(GameContext.local_player, &buf)) {
+                        GameCore.LocalPlayer.obj_id = buf.obj_id;
+                        GameCore.LocalPlayer.camp = buf.camp;
+                        get_health(buf.health_manager, &GameCore.LocalPlayer.health, &GameCore.LocalPlayer.max_health);
+                        get_position(buf.position_manager,&GameCore.LocalPlayer.x,&GameCore.LocalPlayer.z);
+                    }
+                }
+            }
+            //GameCore.Pid = tgame;
+            //GameCore.libGameCoreBase = get_module_base(tgame, "libGameCore.so");
+            //GameCore.libGameCoreBssBase = get_module_bss_base(tgame, "libGameCore.so");
+            //pr_info("tgame_pid: %d\n", GameContext.pid);
+            //pr_info("libGameCoreBase: %llx\n", GameContext.bss_base);
+            //pr_info("libGameCoreBssBase: %llx\n", GameCore.libGameCoreBase);
         } else {
-            GameCore.Pid = 0;
-            GameCore.libGameCoreBase = 0;
-            GameCore.libGameCoreBssBase = 0;
+            GameContext.pid = 0;
+            GameContext.bss_base = 0;
         }
 
         msleep(5000);
