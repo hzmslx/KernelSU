@@ -296,11 +296,11 @@ phys_addr_t translate_linear_address(struct mm_struct *mm, uintptr_t va) {
         return 0;
 
     pud = pud_offset(pgd, va);
-    if (pud_none(*pgd) || pud_bad(*pgd))
+    if (pud_none(*pud) || pud_bad(*pud))
         return 0;
 
     pmd = pmd_offset(pud, va);
-    if (pmd_none(*pgd) || pmd_bad(*pgd))
+    if (pmd_none(*pmd))
         return 0;
 
     pte = pte_offset_kernel(pmd, va);
