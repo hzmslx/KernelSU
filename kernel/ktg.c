@@ -570,7 +570,7 @@ bool isJungle(int obj_id) {
             6053,
     };
 
-    for (int i = 0; i < sizeof(JungleList) / sizeof(int); i++) {
+    for (int i = 0; i < (sizeof(JungleList) / sizeof(int)); i++) {
         if (JungleList[i] == obj_id)
             return true;
     }
@@ -602,10 +602,12 @@ int game_loop_callback(void *unused) {
 
                             if (GameCache.isPlayerAllInit == false || GameCache.isJungleAllInit == false) {
                                 int count = get_entity_arry();
+                                pr_info("array count:%d\n", count);
                                 int hero_count = 0;
                                 int jungle_count = 0;
                                 for (int i = 0; i < count; i++) {
                                     uintptr_t entity = get_entity_by_idx(i);
+                                    pr_info("idx:%d entity:%llx\n", i, entity);
                                     if (entity) {
                                         struct GameObjectBuffer buf2;
                                         if (get_obj(entity, &buf2)) {
@@ -625,7 +627,7 @@ int game_loop_callback(void *unused) {
                                                 GameCore.Jungle[jungle_count].obj_id = buf2.obj_id;
                                                 get_health(buf2.health_manager, &GameCore.Jungle[jungle_count].health,
                                                            &GameCore.Jungle[jungle_count].max_health);
-                                                if (GameCore.isJungleInit[jungle_count] == false) {
+                                                if (GameCache.isJungleInit[jungle_count] == false) {
                                                     get_position(buf2.position_manager,
                                                                  &GameCore.Jungle[jungle_count].x,
                                                                  &GameCore.Jungle[jungle_count].z);
@@ -668,7 +670,7 @@ int game_loop_callback(void *unused) {
                                     }
                                 }
                             }
-                        }else{
+                        } else {
                             memset(&GameCore, 0, sizeof(GameCore));
                             memset(&GameCache, 0, sizeof(GameCache));
                         }
