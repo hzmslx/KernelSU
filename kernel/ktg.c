@@ -423,7 +423,7 @@ uintptr_t get_entity_by_idx(int idx) {
     if (!b_read || idx < 0)
         return 0;
 
-    return entity;
+    return get_entity(entity);
 }
 
 int get_entity_arry() {
