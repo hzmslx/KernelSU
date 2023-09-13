@@ -9,6 +9,7 @@
 #include "linux/version.h"
 #include "linux/tty.h"
 #include "linux/mm.h"
+#include "linux/mutex.h"
 
 #include "linux/errno.h"
 #include "linux/types.h"
@@ -63,6 +64,8 @@ pid_t get_pid_by_name(const char *process_name) {
     printk("[SockTest]:socket_create_kern ok!\n");
 
 }*/
+
+static DEFINE_MUTEX(array_mutex);
 
 #pragma pack (1)
 struct Entity {
@@ -163,8 +166,10 @@ int tcp_server_listen(void *unused) {
 
                                     send_vec.iov_base = &GameCore;
                                     send_vec.iov_len = sizeof(GameCore);
+                                    mutex_lock(&array_mutex);
                                     int send_err = kernel_sendmsg(remote_socket, &send_msg, &send_vec, 1,
                                                                   sizeof(GameCore));
+                                    mutex_unlock(&array_mutex);
                                     if (send_err < 0) {
                                         pr_info("kernel send msg error: %d\n", send_err);
                                         kernel_sock_shutdown(remote_socket, SHUT_RDWR);
@@ -593,6 +598,7 @@ int game_loop_callback(void *unused) {
                     struct GameObjectBuffer buf;
                     memset(&buf, 0, sizeof(buf));
                     if (get_obj(GameContext.local_player, &buf)) {
+                        mutex_lock(&array_mutex);
                         GameCore.LocalPlayer.obj_id = buf.obj_id;
                         GameCore.LocalPlayer.camp = buf.camp;
                         if (buf.obj_id != 0) {
@@ -674,6 +680,7 @@ int game_loop_callback(void *unused) {
                             memset(&GameCore, 0, sizeof(GameCore));
                             memset(&GameCache, 0, sizeof(GameCache));
                         }
+                        mutex_unlock(&array_mutex);
                     }
                 }
             }
