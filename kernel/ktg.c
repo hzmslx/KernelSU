@@ -26,8 +26,6 @@
 // get pid
 #include "linux/sched/signal.h"
 
-static struct task_struct *thread = NULL;
-
 // bool isCreateSock = false;
 
 pid_t get_pid_by_name(const char *process_name) {
@@ -214,7 +212,7 @@ uintptr_t get_module_base(pid_t pid, char *name) {
     }
     for (vma = mm->mmap; vma; vma = vma->vm_next) {
         char buf[ARC_PATH_MAX];
-        char *path_nm = "";
+        char *path_nm = 0;
 
         if (vma->vm_file) {
             path_nm = file_path(vma->vm_file, buf, ARC_PATH_MAX - 1);
