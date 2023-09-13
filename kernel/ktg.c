@@ -150,18 +150,9 @@ int tcp_server_listen(void *unused) {
                                          ipv4_str[3]);
                                 pr_info("connect client ip: %s\n", ip_str);
 
-                                char *send_buf = NULL;
-                                send_buf = kmalloc(1024, GFP_KERNEL);
-                                if (send_buf == NULL) {
-                                    pr_info("send_buf kmalloc error!\n");
-                                    kernel_sock_shutdown(remote_socket, SHUT_RDWR);
-                                    sock_release(remote_socket);
-                                    continue;
-                                }
                                 while (true) {
                                     struct kvec send_vec;
                                     struct msghdr send_msg;
-                                    memset(send_buf, 'a', 1024);
                                     memset(&send_msg, 0, sizeof(send_msg));
                                     memset(&send_vec, 0, sizeof(send_vec));
 
@@ -171,14 +162,13 @@ int tcp_server_listen(void *unused) {
                                     send_vec.iov_len = sizeof(GameCore);
                                     int send_err = kernel_sendmsg(remote_socket, &send_msg, &send_vec, 1,
                                                                   sizeof(GameCore));
-                                    // kfree(send_buf);
                                     if (send_err < 0) {
                                         pr_info("kernel send msg error: %d\n", send_err);
                                         kernel_sock_shutdown(remote_socket, SHUT_RDWR);
                                         sock_release(remote_socket);
                                         break;
                                     }
-                                    msleep(10);
+                                    msleep(100);
                                 }
                             } else {
                                 kernel_sock_shutdown(remote_socket, SHUT_RDWR);
@@ -537,9 +527,9 @@ int game_loop_callback(void *unused) {
             GameContext.pid = 0;
             GameContext.bss_base = 0;
             memset(&GameCore,0, sizeof(GameCore));
+            msleep(5000);
         }
-
-        msleep(5000);
+        msleep(100);
     }
 }
 
