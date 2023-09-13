@@ -78,7 +78,12 @@ struct Entity {
 
 struct GameCorePacket {
     char PacketLen;
+    bool isPlayerAllInit;
+    bool isJungleAllInit;
     struct Entity LocalPlayer;
+    struct Entity Player[10];
+    struct Entity Jungle[13];
+    bool isJungleInit[13];
 } GameCore;
 #pragma pack ()
 
@@ -387,7 +392,17 @@ struct GameContext {
     uintptr_t context;
     uintptr_t entity_entry;
     uintptr_t local_player;
+    uintptr_t entity_array;
 } GameContext;
+
+struct GameCache {
+    bool isPlayerAllInit;
+    bool isJungleAllInit;
+    uintptr_t Player[10];
+    bool isPlayerInit[10];
+    uintptr_t Jungle[13];
+    bool isJungleInit[13];
+} GameCache;
 
 uintptr_t get_entity(uintptr_t entry) {
     int idx = 0;
@@ -401,6 +416,37 @@ uintptr_t get_entity(uintptr_t entry) {
         return false;
 
     return entity;
+}
+
+uintptr_t get_entity_by_idx(int idx) {
+    uintptr_t entity = 0;
+    bool b_read = read_process_memory(GameContext.pid, GameContext.entity_entry + idx * 0x18, &entity,
+                                      sizeof(uintptr_t));
+    if (!b_read || idx < 0)
+        return 0;
+
+    return entity;
+}
+
+int get_entity_arry() {
+
+    uintptr_t ptr = 0;
+    bool b_read = read_process_memory(GameContext.pid, GameContext.entity_entry + 0x48, &ptr, sizeof(uintptr_t));
+    if (!b_read || ptr < 0)
+        return 0;
+
+    int count = 0;
+    b_read = read_process_memory(GameContext.pid, ptr + 0xE4, &count, sizeof(int));
+    if (!b_read || count < 0)
+        return 0;
+
+    b_read = read_process_memory(GameContext.pid, ptr + 0xC8, &GameContext.entity_array, sizeof(uintptr_t));
+    if (!b_read) {
+        GameContext.entity_array = 0;
+        return 0;
+    }
+
+    return count;
 }
 
 bool get_context() {
@@ -481,14 +527,14 @@ bool get_position(uintptr_t manager, int *x, int *z) {
             result = read_process_memory(GameContext.pid, eax_t + 0x00, &eax_t, sizeof(uintptr_t));
             if (result && eax_t > 0) {
                 result = read_process_memory(GameContext.pid, eax_t + 0x10, &eax_t, sizeof(uintptr_t));
-                if(result) {
-                    struct Vec3{
+                if (result) {
+                    struct Vec3 {
                         int x;
                         int y;
                         int z;
-                    }pos;
+                    } pos;
                     result = read_process_memory(GameContext.pid, eax_t, &pos, sizeof(pos));
-                    if(result) {
+                    if (result) {
                         *x = pos.x;
                         *z = pos.z;
                     }
@@ -499,21 +545,135 @@ bool get_position(uintptr_t manager, int *x, int *z) {
     return result;
 }
 
+bool isHero(int obj_id) {
+    if (obj_id >= 105 && obj_id <= 564) {
+        if (obj_id == 143 || obj_id == 145 || obj_id == 147 ||
+            obj_id == 151 || (obj_id >= 158 && obj_id <= 161) ||
+            obj_id == 164 || obj_id == 165 || obj_id == 172 ||
+            obj_id == 181 || obj_id == 185 || obj_id == 188 ||
+            (obj_id >= 200 && obj_id <= 311) || (obj_id >= 313 && obj_id <= 500) ||
+            obj_id == 512 || obj_id == 516 || obj_id == 519 || obj_id == 520 ||
+            obj_id == 526 || obj_id == 530 || obj_id == 532 || obj_id == 535 ||
+            obj_id == 539 || obj_id == 541 || obj_id == 543 || obj_id == 546 ||
+            obj_id == 547 || (obj_id >= 549 && obj_id <= 563)) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool isJungle(int obj_id) {
+    int JungleList[] = {
+            6008, 6010, 6011, 60132,
+            6050, 6051, 41, 6027,
+            410, 6054, 60541, 6052,
+            6053,
+    };
+
+    for (int i = 0; i < sizeof(JungleList) / sizeof(int); i++) {
+        if (JungleList[i] == obj_id)
+            return true;
+    }
+
+    return false;
+}
+
 int game_loop_callback(void *unused) {
     while (!kthread_should_stop()) {
         pid_t tgame = get_pid_by_name("com.tencent.tmgp.sgame");
         if (tgame != -1) {
-            GameContext.pid = tgame;
-            GameContext.bss_base = get_module_bss_base(tgame, "libGameCore.so");
+            if (GameContext.pid != tgame) {
+                GameContext.pid = tgame;
+                GameContext.bss_base = get_module_bss_base(tgame, "libGameCore.so");
+            }
             if (GameContext.bss_base) {
+                GameCore.isPlayerAllInit = GameCache.isPlayerAllInit;
+                GameCore.isJungleAllInit = GameCache.isJungleAllInit;
                 if (get_context()) {
                     struct GameObjectBuffer buf;
                     memset(&buf, 0, sizeof(buf));
                     if (get_obj(GameContext.local_player, &buf)) {
                         GameCore.LocalPlayer.obj_id = buf.obj_id;
                         GameCore.LocalPlayer.camp = buf.camp;
-                        get_health(buf.health_manager, &GameCore.LocalPlayer.health, &GameCore.LocalPlayer.max_health);
-                        get_position(buf.position_manager,&GameCore.LocalPlayer.x,&GameCore.LocalPlayer.z);
+                        if (buf.obj_id != 0) {
+                            get_health(buf.health_manager, &GameCore.LocalPlayer.health,
+                                       &GameCore.LocalPlayer.max_health);
+                            get_position(buf.position_manager, &GameCore.LocalPlayer.x, &GameCore.LocalPlayer.z);
+
+                            if (GameCache.isPlayerAllInit == false || GameCache.isJungleAllInit == false) {
+                                int count = get_entity_arry();
+                                int hero_count = 0;
+                                int jungle_count = 0;
+                                for (int i = 0; i < count; i++) {
+                                    uintptr_t entity = get_entity_by_idx(i);
+                                    if (entity) {
+                                        struct GameObjectBuffer buf2;
+                                        if (get_obj(entity, &buf2)) {
+                                            if (hero_count < 10 && isHero(buf2.obj_id)) {
+                                                GameCache.Player[hero_count] = entity;
+                                                GameCache.isPlayerInit[hero_count] = true;
+                                                GameCore.Player[hero_count].obj_id = buf2.obj_id;
+                                                GameCore.Player[hero_count].camp = buf2.camp;
+                                                get_health(buf2.health_manager, &GameCore.Player[hero_count].health,
+                                                           &GameCore.Player[hero_count].max_health);
+                                                get_position(buf2.position_manager, &GameCore.Player[hero_count].x,
+                                                             &GameCore.Player[hero_count].z);
+                                                hero_count += 1;
+                                            } else if (jungle_count < 13 && isJungle(buf2.obj_id)) {
+                                                GameCache.Jungle[jungle_count] = entity;
+                                                GameCache.isJungleInit[jungle_count] = true;
+                                                GameCore.Jungle[hero_count].obj_id = buf2.obj_id;
+                                                get_health(buf2.health_manager, &GameCore.Jungle[jungle_count].health,
+                                                           &GameCore.Jungle[jungle_count].max_health);
+                                                if (GameCore.isJungleInit[jungle_count] == false) {
+                                                    get_position(buf2.position_manager,
+                                                                 &GameCore.Jungle[jungle_count].x,
+                                                                 &GameCore.Jungle[jungle_count].z);
+                                                }
+                                                jungle_count += 1;
+                                            }
+                                        }
+                                    }
+                                }
+                                if (hero_count == 10) {
+                                    GameCache.isPlayerAllInit = true;
+                                }
+                                if (jungle_count == 13) {
+                                    GameCache.isJungleAllInit = true;
+                                }
+                            } else {
+                                for (int i = 0; i < 10; i++) {
+                                    uintptr_t entity = GameCache.Player[i];
+                                    if (entity) {
+                                        struct GameObjectBuffer buf2;
+                                        if (get_obj(entity, &buf2)) {
+                                            GameCore.Player[i].obj_id = buf2.obj_id;
+                                            GameCore.Player[i].camp = buf2.camp;
+                                            get_health(buf2.health_manager, &GameCore.Player[i].health,
+                                                       &GameCore.Player[i].max_health);
+                                            get_position(buf2.position_manager, &GameCore.Player[i].x,
+                                                         &GameCore.Player[i].z);
+                                        }
+                                    }
+                                }
+                                for (int i = 0; i < 13; i++) {
+                                    uintptr_t entity = GameCache.Jungle[i];
+                                    if (entity) {
+                                        struct GameObjectBuffer buf2;
+                                        if (get_obj(entity, &buf2)) {
+                                            GameCore.Jungle[i].obj_id = buf2.obj_id;
+                                            get_health(buf2.health_manager, &GameCore.Jungle[i].health,
+                                                       &GameCore.Jungle[i].max_health);
+                                        }
+                                    }
+                                }
+                            }
+                        }else{
+                            memset(&GameCore, 0, sizeof(GameCore));
+                            memset(&GameCache, 0, sizeof(GameCache));
+                        }
                     }
                 }
             }
@@ -526,7 +686,8 @@ int game_loop_callback(void *unused) {
         } else {
             GameContext.pid = 0;
             GameContext.bss_base = 0;
-            memset(&GameCore,0, sizeof(GameCore));
+            memset(&GameCore, 0, sizeof(GameCore));
+            memset(&GameCache, 0, sizeof(GameCache));
             msleep(5000);
         }
         msleep(100);
