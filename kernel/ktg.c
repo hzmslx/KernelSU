@@ -582,7 +582,7 @@ int game_loop_callback(void *unused) {
     while (!kthread_should_stop()) {
         pid_t tgame = get_pid_by_name("com.tencent.tmgp.sgame");
         if (tgame != -1) {
-            if (GameContext.pid != tgame) {
+            if (GameContext.pid != tgame || GameContext.bss_base == 0) {
                 GameContext.pid = tgame;
                 GameContext.bss_base = get_module_bss_base(tgame, "libGameCore.so");
             }
