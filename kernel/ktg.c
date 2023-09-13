@@ -418,7 +418,7 @@ uintptr_t get_entity(uintptr_t entry) {
 
 uintptr_t get_entity_by_idx(int idx) {
     uintptr_t entity = 0;
-    bool b_read = read_process_memory(GameContext.pid, GameContext.entity_entry + idx * 0x18, &entity,
+    bool b_read = read_process_memory(GameContext.pid, GameContext.entity_array + idx * 0x18, &entity,
                                       sizeof(uintptr_t));
     if (!b_read || idx < 0)
         return 0;
@@ -602,12 +602,10 @@ int game_loop_callback(void *unused) {
 
                             if (GameCache.isPlayerAllInit == false || GameCache.isJungleAllInit == false) {
                                 int count = get_entity_arry();
-                                pr_info("array count:%d\n", count);
                                 int hero_count = 0;
                                 int jungle_count = 0;
                                 for (int i = 0; i < count; i++) {
                                     uintptr_t entity = get_entity_by_idx(i);
-                                    pr_info("idx:%d entity:%llx\n", i, entity);
                                     if (entity) {
                                         struct GameObjectBuffer buf2;
                                         if (get_obj(entity, &buf2)) {
