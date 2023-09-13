@@ -621,7 +621,6 @@ int game_loop_callback(void *unused) {
                                                 hero_count += 1;
                                             } else if (jungle_count < 13 && isJungle(buf2.obj_id)) {
                                                 GameCache.Jungle[jungle_count] = entity;
-                                                GameCache.isJungleInit[jungle_count] = true;
                                                 GameCore.Jungle[jungle_count].obj_id = buf2.obj_id;
                                                 get_health(buf2.health_manager, &GameCore.Jungle[jungle_count].health,
                                                            &GameCore.Jungle[jungle_count].max_health);
@@ -629,6 +628,7 @@ int game_loop_callback(void *unused) {
                                                     get_position(buf2.position_manager,
                                                                  &GameCore.Jungle[jungle_count].x,
                                                                  &GameCore.Jungle[jungle_count].z);
+                                                    GameCache.isJungleInit[jungle_count] = true;
                                                 }
                                                 jungle_count += 1;
                                             }
