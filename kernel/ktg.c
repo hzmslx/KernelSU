@@ -682,7 +682,7 @@ int game_loop_callback(void *unused) {
             //pr_info("libGameCoreBase: %llx\n", GameContext.bss_base);
             //pr_info("libGameCoreBssBase: %llx\n", GameCore.libGameCoreBase);
         } else {
-            GameContext.pid = 0;
+            GameContext.pid = -1;
             GameContext.bss_base = 0;
             memset(&GameCore, 0, sizeof(GameCore));
             memset(&GameCache, 0, sizeof(GameCache));
