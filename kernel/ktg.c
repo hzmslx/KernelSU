@@ -570,9 +570,9 @@ bool isHero(int obj_id) {
 bool isJungle(int obj_id) {
     int JungleList[] = {
             6008, 6010, 6011, 6013,
-            60132,6050, 6051, 41,
-            6027,410, 6054, 60541,
-            6052,6053,
+            60132, 6050, 6051, 41,
+            6027, 410, 6054, 60541,
+            6052, 6053,
     };
 
     for (int i = 0; i < (sizeof(JungleList) / sizeof(int)); i++) {
@@ -631,16 +631,14 @@ int game_loop_callback(void *unused) {
                                                 get_health(buf2.health_manager, &GameCore.Jungle[jungle_count].health,
                                                            &GameCore.Jungle[jungle_count].max_health);
                                                 if (GameCache.isJungleInit[jungle_count] == false) {
-                                                    if(get_position(buf2.position_manager,
-                                                                 &GameCore.Jungle[jungle_count].x,
-                                                                 &GameCore.Jungle[jungle_count].z))
-                                                    {
+                                                    if (get_position(buf2.position_manager,
+                                                                     &GameCore.Jungle[jungle_count].x,
+                                                                     &GameCore.Jungle[jungle_count].z)) {
                                                         GameCache.isJungleInit[jungle_count] = true;
                                                         GameCore.isJungleInit[jungle_count] = true;
-                                                        jungle_count += 1;
                                                     }
                                                 }
-
+                                                jungle_count += 1;
                                             }
                                         }
                                     }
@@ -648,8 +646,13 @@ int game_loop_callback(void *unused) {
                                 if (hero_count == 10) {
                                     GameCache.isPlayerAllInit = true;
                                 }
-                                if (jungle_count == 17) {
-                                    GameCache.isJungleAllInit = true;
+
+                                GameCache.isJungleAllInit = true;
+                                for (int l = 0; l < 17; l++) {
+                                    if(GameCache.isJungleInit[l] == false) {
+                                        GameCache.isJungleAllInit = false;
+                                        break;
+                                    }
                                 }
                             } else {
                                 for (int j = 0; j < 10; j++) {
