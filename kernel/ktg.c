@@ -569,10 +569,10 @@ bool isHero(int obj_id) {
 
 bool isJungle(int obj_id) {
     int JungleList[] = {
-            6008, 6010, 6011, 60132,
-            6050, 6051, 41, 6027,
-            410, 6054, 60541, 6052,
-            6053,
+            6008, 6010, 6011, 6013,
+            60132,6050, 6051, 41,
+            6027,410, 6054, 60541,
+            6052,6053,
     };
 
     for (int i = 0; i < (sizeof(JungleList) / sizeof(int)); i++) {
