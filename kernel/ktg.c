@@ -636,9 +636,10 @@ int game_loop_callback(void *unused) {
                                                                  &GameCore.Jungle[jungle_count].z))
                                                     {
                                                         GameCache.isJungleInit[jungle_count] = true;
+                                                        jungle_count += 1;
                                                     }
                                                 }
-                                                jungle_count += 1;
+
                                             }
                                         }
                                     }
