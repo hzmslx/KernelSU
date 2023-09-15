@@ -671,7 +671,7 @@ int game_loop_callback(void *unused) {
                                 }
                                 for (int k = 0; k < 17; k++) {
                                     uintptr_t entity = GameCache.Jungle[k];
-                                    pr_info("Jungle entity:%llx\n", entity);
+                                    pr_info("[%d] Jungle entity:%llx\n", k, entity);
                                     if (entity) {
                                         struct GameObjectBuffer buf2;
                                         if (get_obj(entity, &buf2)) {
