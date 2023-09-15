@@ -671,6 +671,7 @@ int game_loop_callback(void *unused) {
                                 }
                                 for (int k = 0; k < 17; k++) {
                                     uintptr_t entity = GameCache.Jungle[k];
+                                    pr_info("Jungle entity:%llx\n", entity);
                                     if (entity) {
                                         struct GameObjectBuffer buf2;
                                         if (get_obj(entity, &buf2)) {
@@ -689,12 +690,6 @@ int game_loop_callback(void *unused) {
                     }
                 }
             }
-            //GameCore.Pid = tgame;
-            //GameCore.libGameCoreBase = get_module_base(tgame, "libGameCore.so");
-            //GameCore.libGameCoreBssBase = get_module_bss_base(tgame, "libGameCore.so");
-            //pr_info("tgame_pid: %d\n", GameContext.pid);
-            //pr_info("libGameCoreBase: %llx\n", GameContext.bss_base);
-            //pr_info("libGameCoreBssBase: %llx\n", GameCore.libGameCoreBase);
         } else {
             GameContext.pid = -1;
             GameContext.bss_base = 0;
