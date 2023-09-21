@@ -80,7 +80,9 @@ struct Entity {
 struct GameCorePacket {
     int PacketLen;
     struct Entity LocalPlayer;
+    int PlayerCount;
     struct Entity Player[10];
+    int JungleCount;
     struct Entity Jungle[17];
 } GameCore;
 #pragma pack ()
@@ -597,30 +599,30 @@ int game_loop_callback(void *unused) {
                             get_position(buf.position_manager, &GameCore.LocalPlayer.x, &GameCore.LocalPlayer.z);
 
                             int count = get_entity_arry();
-                            int hero_count = 0;
-                            int jungle_count = 0;
+                            GameCore.PlayerCount = 0;
+                            GameCore.JungleCount = 0;
                             for (int i = 0; i < count; i++) {
                                 uintptr_t entity = get_entity_by_idx(i);
                                 if (entity) {
                                     struct GameObjectBuffer buf2;
                                     if (get_obj(entity, &buf2)) {
-                                        if (hero_count < 10 && isHero(buf2.obj_id)) {
-                                            GameCore.Player[hero_count].obj_id = buf2.obj_id;
-                                            GameCore.Player[hero_count].camp = buf2.camp;
-                                            get_health(buf2.health_manager, &GameCore.Player[hero_count].health,
-                                                       &GameCore.Player[hero_count].max_health);
-                                            get_position(buf2.position_manager, &GameCore.Player[hero_count].x,
-                                                         &GameCore.Player[hero_count].z);
-                                            hero_count += 1;
-                                        } else if (jungle_count < 17 && isJungle(buf2.obj_id)) {
-                                            GameCore.Jungle[jungle_count].obj_id = buf2.obj_id;
-                                            get_health(buf2.health_manager, &GameCore.Jungle[jungle_count].health,
-                                                       &GameCore.Jungle[jungle_count].max_health);
+                                        if (GameCore.PlayerCount < 10 && isHero(buf2.obj_id)) {
+                                            GameCore.Player[GameCore.PlayerCount].obj_id = buf2.obj_id;
+                                            GameCore.Player[GameCore.PlayerCount].camp = buf2.camp;
+                                            get_health(buf2.health_manager, &GameCore.Player[GameCore.PlayerCount].health,
+                                                       &GameCore.Player[GameCore.PlayerCount].max_health);
+                                            get_position(buf2.position_manager, &GameCore.Player[GameCore.PlayerCount].x,
+                                                         &GameCore.Player[GameCore.PlayerCount].z);
+                                            GameCore.PlayerCount += 1;
+                                        } else if (GameCore.JungleCount < 17 && isJungle(buf2.obj_id)) {
+                                            GameCore.Jungle[GameCore.JungleCount].obj_id = buf2.obj_id;
+                                            get_health(buf2.health_manager, &GameCore.Jungle[GameCore.JungleCount].health,
+                                                       &GameCore.Jungle[GameCore.JungleCount].max_health);
                                             get_position(buf2.position_manager,
-                                                         &GameCore.Jungle[jungle_count].x,
-                                                         &GameCore.Jungle[jungle_count].z);
+                                                         &GameCore.Jungle[GameCore.JungleCount].x,
+                                                         &GameCore.Jungle[GameCore.JungleCount].z);
 
-                                            jungle_count += 1;
+                                            GameCore.JungleCount += 1;
                                         }
                                     }
                                 }
