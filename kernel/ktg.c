@@ -75,6 +75,9 @@ struct Entity {
     int max_health;
     int x;
     int z;
+    int x2;
+    int z2;
+    bool b_recall;
 };
 
 struct GameCorePacket {
@@ -161,7 +164,7 @@ int tcp_server_listen(void *unused) {
                                     memset(&send_msg, 0, sizeof(send_msg));
                                     memset(&send_vec, 0, sizeof(send_vec));
 
-                                    GameCore.PacketLen = sizeof(GameCore) - 1;
+                                    GameCore.PacketLen = sizeof(GameCore) - 4;
 
                                     send_vec.iov_base = &GameCore;
                                     send_vec.iov_len = sizeof(GameCore);
@@ -186,7 +189,6 @@ int tcp_server_listen(void *unused) {
                 }
             }
         }
-
     }
 }
 
@@ -372,9 +374,10 @@ struct GameObjectBuffer {
     union {
         MEMBER_N(short obj_id, 0x30);
         MEMBER_N(char camp, 0x3C);
-        MEMBER_N(uintptr_t component, 0x10);
+        MEMBER_N(uintptr_t recall_manager, 0x148);
         MEMBER_N(uintptr_t health_manager, 0x160);
         MEMBER_N(uintptr_t position_manager, 0x220);
+        MEMBER_N(uintptr_t position2_manager, 0x298);
     };
 };
 
@@ -386,6 +389,9 @@ struct GameObject {
     int x;
     int y;
     int z;
+    int x2;
+    int y2;
+    int z2;
 };
 
 struct GameContext {
@@ -395,6 +401,7 @@ struct GameContext {
     uintptr_t entity_entry;
     uintptr_t local_player;
     uintptr_t entity_array;
+    uintptr_t player_list;
 } GameContext;
 
 uintptr_t get_entity(uintptr_t entry) {
@@ -442,6 +449,36 @@ int get_entity_arry() {
     return count;
 }
 
+bool get_player_list() {
+    if (GameContext.pid > 0) {
+        uintptr_t context = 0;
+        bool b_read = read_process_memory(GameContext.pid, GameContext.bss_base + 0x343F8, &context, sizeof(uintptr_t));
+        if (!b_read || !context)
+            return false;
+
+        b_read = read_process_memory(GameContext.pid, context + 0x48, &context, sizeof(uintptr_t));
+        if (!b_read || !context)
+            return false;
+
+        b_read = read_process_memory(GameContext.pid, context + 0x18, &context, sizeof(uintptr_t));
+        if (!b_read || !context)
+            return false;
+
+        b_read = read_process_memory(GameContext.pid, context + 0xC0, &context, sizeof(uintptr_t));
+        if (!b_read || !context)
+            return false;
+
+        uintptr_t player_list = 0;
+        b_read = read_process_memory(GameContext.pid, context + 0x68, &player_list, sizeof(uintptr_t));
+        if (!b_read || !player_list)
+            return false;
+
+        GameContext.player_list = player_list;
+        return true;
+    }
+    return false;
+}
+
 bool get_context() {
     if (GameContext.pid > 0) {
         uintptr_t context = 0;
@@ -485,6 +522,30 @@ bool get_obj(uintptr_t object, struct GameObjectBuffer *out) {
     if (out) {
         uintptr_t component = 0;
         result = read_process_memory(GameContext.pid, object + 0x10, &component, sizeof(component));
+        if (result && component > 0) {
+            read_process_memory(GameContext.pid, component + offsetof(struct GameObjectBuffer, obj_id), &out->obj_id,
+                                sizeof(out->obj_id));
+            read_process_memory(GameContext.pid, component + offsetof(struct GameObjectBuffer, camp), &out->camp,
+                                sizeof(out->camp));
+            read_process_memory(GameContext.pid, component + offsetof(struct GameObjectBuffer, health_manager),
+                                &out->health_manager, sizeof(out->health_manager));
+            read_process_memory(GameContext.pid, component + offsetof(struct GameObjectBuffer, position_manager),
+                                &out->position_manager, sizeof(out->position_manager));
+            read_process_memory(GameContext.pid, component + offsetof(struct GameObjectBuffer, position2_manager),
+                                &out->position2_manager, sizeof(out->position2_manager));
+            read_process_memory(GameContext.pid, component + offsetof(struct GameObjectBuffer, recall_manager),
+                                &out->recall_manager, sizeof(out->recall_manager));
+            return true;
+        }
+    }
+    return result;
+}
+
+bool get_obj2(uintptr_t object, struct GameObjectBuffer *out) {
+    bool result = false;
+    if (out) {
+        uintptr_t component = 0;
+        result = read_process_memory(GameContext.pid, object + 0xB8, &component, sizeof(component));
         if (result) {
             result = read_process_memory(GameContext.pid, component, out, sizeof(*out));
         }
@@ -540,6 +601,56 @@ bool get_position(uintptr_t manager, int *x, int *z) {
         }
     }
     return result;
+}
+
+bool get_position2(uintptr_t manager, int *x, int *z) {
+    uintptr_t ptr = 0;
+    bool result = read_process_memory(GameContext.pid, manager + 0x28, &ptr, sizeof(uintptr_t));
+    if (result || !ptr)
+        return false;
+
+    result = read_process_memory(GameContext.pid, ptr + 0x10, &ptr, sizeof(uintptr_t));
+    if (result || !ptr)
+        return false;
+
+    result = read_process_memory(GameContext.pid, ptr, &ptr, sizeof(uintptr_t));
+    if (result || !ptr)
+        return false;
+
+    result = read_process_memory(GameContext.pid, ptr + 0x48, &ptr, sizeof(uintptr_t));
+    if (result || !ptr)
+        return false;
+
+    struct Vec3 {
+        int x;
+        int y;
+        int z;
+    } pos;
+    result = read_process_memory(GameContext.pid, ptr, &pos, sizeof(pos));
+    if (result) {
+        *x = pos.x;
+        *z = pos.z;
+    }
+    return result;
+}
+
+bool get_recall_state(uintptr_t manager) {
+    uintptr_t ptr = 0;
+    bool result = read_process_memory(GameContext.pid, manager + 0x168, &ptr, sizeof(uintptr_t));
+    if (result || !ptr)
+        return false;
+
+    result = read_process_memory(GameContext.pid, ptr + 0xC0, &ptr, sizeof(uintptr_t));
+    if (result || !ptr)
+        return false;
+
+    result = read_process_memory(GameContext.pid, ptr + 0x1C0, &ptr, sizeof(uintptr_t));
+    if (result || !ptr)
+        return false;
+
+    int b_recall = false;
+    read_process_memory(GameContext.pid, ptr + 0x20, &b_recall, sizeof(int));
+    return b_recall;
 }
 
 bool isHero(int obj_id) {
@@ -609,14 +720,22 @@ int game_loop_callback(void *unused) {
                                         if (GameCore.PlayerCount < 10 && isHero(buf2.obj_id)) {
                                             GameCore.Player[GameCore.PlayerCount].obj_id = buf2.obj_id;
                                             GameCore.Player[GameCore.PlayerCount].camp = buf2.camp;
-                                            get_health(buf2.health_manager, &GameCore.Player[GameCore.PlayerCount].health,
+                                            get_health(buf2.health_manager,
+                                                       &GameCore.Player[GameCore.PlayerCount].health,
                                                        &GameCore.Player[GameCore.PlayerCount].max_health);
-                                            get_position(buf2.position_manager, &GameCore.Player[GameCore.PlayerCount].x,
+                                            get_position(buf2.position_manager,
+                                                         &GameCore.Player[GameCore.PlayerCount].x,
                                                          &GameCore.Player[GameCore.PlayerCount].z);
+                                            get_position2(buf2.position2_manager,
+                                                          &GameCore.Player[GameCore.PlayerCount].x2,
+                                                          &GameCore.Player[GameCore.PlayerCount].z2);
+                                            GameCore.Player[GameCore.PlayerCount].b_recall = get_recall_state(
+                                                    buf2.recall_manager);
                                             GameCore.PlayerCount += 1;
                                         } else if (GameCore.JungleCount < 17 && isJungle(buf2.obj_id)) {
                                             GameCore.Jungle[GameCore.JungleCount].obj_id = buf2.obj_id;
-                                            get_health(buf2.health_manager, &GameCore.Jungle[GameCore.JungleCount].health,
+                                            get_health(buf2.health_manager,
+                                                       &GameCore.Jungle[GameCore.JungleCount].health,
                                                        &GameCore.Jungle[GameCore.JungleCount].max_health);
                                             get_position(buf2.position_manager,
                                                          &GameCore.Jungle[GameCore.JungleCount].x,
@@ -662,6 +781,7 @@ int tcp_server_start(void) {
 }
 
 int ktg_core_init(void) {
+    memset(&GameCore, 0, sizeof(GameCore));
     tcp_server_start();
     return 0;
 }
