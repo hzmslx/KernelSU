@@ -84,7 +84,7 @@ struct GameCorePacket {
     int PacketLen;
     struct Entity LocalPlayer;
     int PlayerCount;
-    struct Entity Player[10];
+    struct Entity Player[11];
     int JungleCount;
     struct Entity Jungle[17];
 } GameCore;
@@ -165,6 +165,7 @@ int tcp_server_listen(void *unused) {
                                     memset(&send_vec, 0, sizeof(send_vec));
 
                                     GameCore.PacketLen = sizeof(GameCore) - 4;
+
 
                                     send_vec.iov_base = &GameCore;
                                     send_vec.iov_len = sizeof(GameCore);
@@ -606,19 +607,19 @@ bool get_position(uintptr_t manager, int *x, int *z) {
 bool get_position2(uintptr_t manager, int *x, int *z) {
     uintptr_t ptr = 0;
     bool result = read_process_memory(GameContext.pid, manager + 0x28, &ptr, sizeof(uintptr_t));
-    if (result || !ptr)
+    if (!result || !ptr)
         return false;
 
     result = read_process_memory(GameContext.pid, ptr + 0x10, &ptr, sizeof(uintptr_t));
-    if (result || !ptr)
+    if (!result || !ptr)
         return false;
 
     result = read_process_memory(GameContext.pid, ptr, &ptr, sizeof(uintptr_t));
-    if (result || !ptr)
+    if (!result || !ptr)
         return false;
 
     result = read_process_memory(GameContext.pid, ptr + 0x48, &ptr, sizeof(uintptr_t));
-    if (result || !ptr)
+    if (!result || !ptr)
         return false;
 
     struct Vec3 {
@@ -637,15 +638,15 @@ bool get_position2(uintptr_t manager, int *x, int *z) {
 bool get_recall_state(uintptr_t manager) {
     uintptr_t ptr = 0;
     bool result = read_process_memory(GameContext.pid, manager + 0x168, &ptr, sizeof(uintptr_t));
-    if (result || !ptr)
+    if (!result || !ptr)
         return false;
 
     result = read_process_memory(GameContext.pid, ptr + 0xC0, &ptr, sizeof(uintptr_t));
-    if (result || !ptr)
+    if (!result || !ptr)
         return false;
 
     result = read_process_memory(GameContext.pid, ptr + 0x1C0, &ptr, sizeof(uintptr_t));
-    if (result || !ptr)
+    if (!result || !ptr)
         return false;
 
     int b_recall = false;
@@ -654,6 +655,9 @@ bool get_recall_state(uintptr_t manager) {
 }
 
 bool isHero(int obj_id) {
+    if(obj_id == 225)
+        return true;
+
     if (obj_id >= 105 && obj_id <= 564) {
         if (obj_id == 143 || obj_id == 145 || obj_id == 147 ||
             obj_id == 151 || (obj_id >= 158 && obj_id <= 161) ||
@@ -717,7 +721,7 @@ int game_loop_callback(void *unused) {
                                 if (entity) {
                                     struct GameObjectBuffer buf2;
                                     if (get_obj(entity, &buf2)) {
-                                        if (GameCore.PlayerCount < 10 && isHero(buf2.obj_id)) {
+                                        if (GameCore.PlayerCount < 11 && isHero(buf2.obj_id)) {
                                             GameCore.Player[GameCore.PlayerCount].obj_id = buf2.obj_id;
                                             GameCore.Player[GameCore.PlayerCount].camp = buf2.camp;
                                             get_health(buf2.health_manager,
