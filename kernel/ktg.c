@@ -877,7 +877,9 @@ int game_loop_callback(void *unused) {
                                                                 &GameCore.Player[GameCore.PlayerCount].skill_summoner_max_cd);
                                             GameCore.Player[GameCore.PlayerCount].b_recall = get_recall_state(
                                                     buf2.skill_manager);
+
                                             GameCore.PlayerCount += 1;
+
                                         } else if (GameCore.JungleCount < 17 && isJungle(buf2.obj_id)) {
                                             GameCore.Jungle[GameCore.JungleCount].obj_id = buf2.obj_id;
                                             get_health(buf2.health_manager,
