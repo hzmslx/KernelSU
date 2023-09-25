@@ -804,7 +804,7 @@ bool isJungle(int obj_id) {
 }
 
 bool isSpecialSpell(int obj_id) {
-    if (obj_id == 125 || obj_id == 179 || obj_id == 182)
+    if (obj_id == 125 || obj_id == 179 || obj_id == 182 || obj_id == 225)
         return true;
 
     return false;
