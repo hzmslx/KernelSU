@@ -118,7 +118,7 @@ struct GameCorePacket {
     int JungleCDCount;
     struct JungleCD JungleCD[21];
     int VisionElfCount;
-    struct VisionElf VisionElf[21];
+    struct VisionElf VisionElf[10];
 
 } GameCore;
 #pragma pack ()
