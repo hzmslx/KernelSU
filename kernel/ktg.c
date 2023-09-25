@@ -617,13 +617,23 @@ bool get_vision_elf_pos(uintptr_t object, int *x, int *y) {
     int vision_elf_y = 0;
     read_process_memory(GameContext.pid, component, &vision_elf_x, sizeof(int));
     read_process_memory(GameContext.pid, component + 0x8, &vision_elf_y, sizeof(int));
+    *x = vision_elf_x;
+    *y = vision_elf_y;
     return true;
 }
 
-int get_skill_id_and_cd(uintptr_t manager, int idx, int *id, int *level, int *cd, int *max_cd) {
+uintptr_t get_skill(uintptr_t manager, int idx) {
     uintptr_t ptr = 0;
     bool result = read_process_memory(GameContext.pid, manager + 0xC0 + idx * 0x18, &ptr, sizeof(uintptr_t));
     if (!result || !ptr)
+        return 0;
+
+    return ptr;
+}
+
+bool get_skill_id_and_cd(uintptr_t manager, int idx, int *id, int *level, int *cd, int *max_cd) {
+    uintptr_t ptr = get_skill(manager, idx);
+    if (!ptr)
         return false;
 
     if (level) {
@@ -633,7 +643,7 @@ int get_skill_id_and_cd(uintptr_t manager, int idx, int *id, int *level, int *cd
     }
 
     uintptr_t id_ptr = 0;
-    result = read_process_memory(GameContext.pid, ptr + 0x60, &id_ptr, sizeof(uintptr_t));
+    bool result = read_process_memory(GameContext.pid, ptr + 0x60, &id_ptr, sizeof(uintptr_t));
     if (!result || !id_ptr)
         return false;
 
@@ -793,6 +803,13 @@ bool isJungle(int obj_id) {
     return false;
 }
 
+bool isSpecialSpell(int obj_id) {
+    if (obj_id == 125 || obj_id == 179 || obj_id == 182)
+        return true;
+
+    return false;
+}
+
 int game_loop_callback(void *unused) {
     while (!kthread_should_stop()) {
         pid_t tgame = get_pid_by_name("com.tencent.tmgp.sgame");
@@ -831,8 +848,23 @@ int game_loop_callback(void *unused) {
                                             get_position(buf2.position_manager,
                                                          &GameCore.Player[GameCore.PlayerCount].x,
                                                          &GameCore.Player[GameCore.PlayerCount].z);
+
+
+                                            int skill_idx = isSpecialSpell(buf2.obj_id) ? 4 : 3;
+                                            if (buf.obj_id == 191) {
+                                                uintptr_t skill = get_skill(buf2.skill_manager, 4);
+                                                if (skill) {
+                                                    bool is_un_valid = false;
+                                                    read_process_memory(GameContext.pid, skill + 0x35, &is_un_valid,
+                                                                        sizeof(bool));
+                                                    if (is_un_valid)
+                                                        skill_idx = 3;
+                                                    else
+                                                        skill_idx = 4;
+                                                }
+                                            }
                                             get_skill_id_and_cd(buf2.skill_manager,
-                                                                3,
+                                                                skill_idx,
                                                                 &GameCore.Player[GameCore.PlayerCount].skill_3_id,
                                                                 &GameCore.Player[GameCore.PlayerCount].skill_3_level,
                                                                 &GameCore.Player[GameCore.PlayerCount].skill_3_cd,
