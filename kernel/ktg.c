@@ -855,7 +855,7 @@ int game_loop_callback(void *unused) {
                                                 uintptr_t skill = get_skill(buf2.skill_manager, 4);
                                                 if (skill) {
                                                     bool is_un_valid = false;
-                                                    read_process_memory(GameContext.pid, skill + 0x35, &is_un_valid,
+                                                    read_process_memory(GameContext.pid, skill + 0x37, &is_un_valid,
                                                                         sizeof(bool));
                                                     if (is_un_valid)
                                                         skill_idx = 3;
