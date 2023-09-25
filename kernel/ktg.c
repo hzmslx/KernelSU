@@ -75,9 +75,37 @@ struct Entity {
     int max_health;
     int x;
     int z;
-    int x2;
-    int z2;
     bool b_recall;
+    int skill_3_id;
+    int skill_3_level;
+    int skill_3_cd;
+    int skill_3_max_cd;
+    int skill_summoner_id;
+    int skill_summoner_cd;
+    int skill_summoner_max_cd;
+};
+
+struct JungleEntity {
+    short obj_id;
+    char camp;
+    int health;
+    int max_health;
+    int x;
+    int z;
+    bool b_recall;
+};
+
+struct JungleCD {
+    int health;
+    int cd;
+    int x;
+    int y;
+};
+
+struct VisionElf {
+    int value;
+    int x;
+    int y;
 };
 
 struct GameCorePacket {
@@ -86,7 +114,12 @@ struct GameCorePacket {
     int PlayerCount;
     struct Entity Player[11];
     int JungleCount;
-    struct Entity Jungle[17];
+    struct JungleEntity Jungle[17];
+    int JungleCDCount;
+    struct JungleCD JungleCD[21];
+    int VisionElfCount;
+    struct VisionElf VisionElf[21];
+
 } GameCore;
 #pragma pack ()
 
@@ -375,24 +408,11 @@ struct GameObjectBuffer {
     union {
         MEMBER_N(short obj_id, 0x30);
         MEMBER_N(char camp, 0x3C);
-        MEMBER_N(uintptr_t recall_manager, 0x148);
+        MEMBER_N(uintptr_t skill_manager, 0x148);
         MEMBER_N(uintptr_t health_manager, 0x160);
         MEMBER_N(uintptr_t position_manager, 0x220);
         MEMBER_N(uintptr_t position2_manager, 0x298);
     };
-};
-
-struct GameObject {
-    short obj_id;
-    char camp;
-    int health;
-    int max_health;
-    int x;
-    int y;
-    int z;
-    int x2;
-    int y2;
-    int z2;
 };
 
 struct GameContext {
@@ -402,7 +422,8 @@ struct GameContext {
     uintptr_t entity_entry;
     uintptr_t local_player;
     uintptr_t entity_array;
-    uintptr_t player_list;
+    uintptr_t jungle_cd_list;
+    uintptr_t vision_elf_list;
 } GameContext;
 
 uintptr_t get_entity(uintptr_t entry) {
@@ -450,34 +471,54 @@ int get_entity_arry() {
     return count;
 }
 
-bool get_player_list() {
+int get_jungle_list() {
     if (GameContext.pid > 0) {
         uintptr_t context = 0;
-        bool b_read = read_process_memory(GameContext.pid, GameContext.bss_base + 0x343F8, &context, sizeof(uintptr_t));
+        bool b_read = read_process_memory(GameContext.pid, GameContext.context + 0x3B0, &context, sizeof(uintptr_t));
         if (!b_read || !context)
-            return false;
+            return 0;
 
-        b_read = read_process_memory(GameContext.pid, context + 0x48, &context, sizeof(uintptr_t));
+        b_read = read_process_memory(GameContext.pid, context + 0x88, &context, sizeof(uintptr_t));
         if (!b_read || !context)
-            return false;
+            return 0;
 
-        b_read = read_process_memory(GameContext.pid, context + 0x18, &context, sizeof(uintptr_t));
-        if (!b_read || !context)
-            return false;
+        uintptr_t jungle_cd_list = 0;
+        b_read = read_process_memory(GameContext.pid, context + 0x120, &jungle_cd_list, sizeof(uintptr_t));
+        if (!b_read || !jungle_cd_list)
+            return 0;
 
-        b_read = read_process_memory(GameContext.pid, context + 0xC0, &context, sizeof(uintptr_t));
-        if (!b_read || !context)
-            return false;
+        int count = 0;
+        b_read = read_process_memory(GameContext.pid, context + 0x120 + 0x1C, &count, sizeof(int));
+        if (!b_read || !count)
+            return 0;
 
-        uintptr_t player_list = 0;
-        b_read = read_process_memory(GameContext.pid, context + 0x68, &player_list, sizeof(uintptr_t));
-        if (!b_read || !player_list)
-            return false;
-
-        GameContext.player_list = player_list;
-        return true;
+        GameContext.jungle_cd_list = jungle_cd_list;
+        return count;
     }
-    return false;
+    return 0;
+}
+
+int get_vision_elf_list() {
+    if (GameContext.pid > 0) {
+        uintptr_t context = 0;
+        bool b_read = read_process_memory(GameContext.pid, GameContext.context + 0x380, &context, sizeof(uintptr_t));
+        if (!b_read || !context)
+            return 0;
+
+        uintptr_t vision_elf_list = 0;
+        b_read = read_process_memory(GameContext.pid, context + 0x1E8, &vision_elf_list, sizeof(uintptr_t));
+        if (!b_read || !vision_elf_list)
+            return 0;
+
+        int count = 0;
+        b_read = read_process_memory(GameContext.pid, context + 0x1E8 + 0x1C, &count, sizeof(int));
+        if (!b_read || !count)
+            return 0;
+
+        GameContext.vision_elf_list = vision_elf_list;
+        return count;
+    }
+    return 0;
 }
 
 bool get_context() {
@@ -534,24 +575,84 @@ bool get_obj(uintptr_t object, struct GameObjectBuffer *out) {
                                 &out->position_manager, sizeof(out->position_manager));
             read_process_memory(GameContext.pid, component + offsetof(struct GameObjectBuffer, position2_manager),
                                 &out->position2_manager, sizeof(out->position2_manager));
-            read_process_memory(GameContext.pid, component + offsetof(struct GameObjectBuffer, recall_manager),
-                                &out->recall_manager, sizeof(out->recall_manager));
+            read_process_memory(GameContext.pid, component + offsetof(struct GameObjectBuffer, skill_manager),
+                                &out->skill_manager, sizeof(out->skill_manager));
             return true;
         }
     }
     return result;
 }
 
-bool get_obj2(uintptr_t object, struct GameObjectBuffer *out) {
+int get_jungle_health(uintptr_t object) {
     bool result = false;
-    if (out) {
-        uintptr_t component = 0;
-        result = read_process_memory(GameContext.pid, object + 0xB8, &component, sizeof(component));
-        if (result) {
-            result = read_process_memory(GameContext.pid, component, out, sizeof(*out));
-        }
+    uintptr_t component = 0;
+    result = read_process_memory(GameContext.pid, object + 0x390, &component, sizeof(uintptr_t));
+    if (!result || !component)
+        return 0;
+
+    uintptr_t health_manager = 0;
+    result = read_process_memory(GameContext.pid, component + 0x160, &health_manager, sizeof(uintptr_t));
+    if (!result || !health_manager)
+        return 0;
+
+    int health = 0;
+    result = read_process_memory(GameContext.pid, health_manager + 0xA0, &health, sizeof(int));
+    if (!result)
+        return 0;
+    return health;
+}
+
+bool get_vision_elf_pos(uintptr_t object, int *x, int *y) {
+    bool result = false;
+    uintptr_t component = 0;
+    result = read_process_memory(GameContext.pid, object + 0x220, &component, sizeof(uintptr_t));
+    if (!result || !component)
+        return false;
+
+    result = read_process_memory(GameContext.pid, component + 0xE8, &component, sizeof(uintptr_t));
+    if (!result || !component)
+        return false;
+
+    int vision_elf_x = 0;
+    int vision_elf_y = 0;
+    read_process_memory(GameContext.pid, component, &vision_elf_x, sizeof(int));
+    read_process_memory(GameContext.pid, component + 0x8, &vision_elf_y, sizeof(int));
+    return true;
+}
+
+int get_skill_id_and_cd(uintptr_t manager, int idx, int *id, int *level, int *cd, int *max_cd) {
+    uintptr_t ptr = 0;
+    bool result = read_process_memory(GameContext.pid, manager + 0xC0 + idx * 0x18, &ptr, sizeof(uintptr_t));
+    if (!result || !ptr)
+        return false;
+
+    if (level) {
+        int skill_level = 0;
+        read_process_memory(GameContext.pid, ptr + 0x10, &skill_level, sizeof(int));
+        *level = skill_level;
     }
-    return result;
+
+    uintptr_t id_ptr = 0;
+    result = read_process_memory(GameContext.pid, ptr + 0x60, &id_ptr, sizeof(uintptr_t));
+    if (!result || !id_ptr)
+        return false;
+
+    uintptr_t cd_ptr = 0;
+    result = read_process_memory(GameContext.pid, ptr + 0xA8, &cd_ptr, sizeof(uintptr_t));
+    if (!result || !cd_ptr)
+        return false;
+
+    int skill_id = 0;
+    int skill_cd = 0;
+    int skill_max_cd = 0;
+
+    read_process_memory(GameContext.pid, id_ptr + 0x10, &skill_id, sizeof(int));
+    read_process_memory(GameContext.pid, cd_ptr + 0x3C, &skill_cd, sizeof(int));
+    read_process_memory(GameContext.pid, cd_ptr + 0x3C + 8, &skill_max_cd, sizeof(int));
+    *id = skill_id;
+    *cd = skill_cd;
+    *max_cd = skill_max_cd;
+    return true;
 }
 
 bool get_health(uintptr_t manager, int *health, int *max_health) {
@@ -592,11 +693,11 @@ bool get_position(uintptr_t manager, int *x, int *z) {
                         int y;
                         int z;
                     } pos;
-                    result = read_process_memory(GameContext.pid, eax_t, &pos, sizeof(pos));
-                    if (result) {
-                        *x = pos.x;
-                        *z = pos.z;
-                    }
+                    read_process_memory(GameContext.pid, eax_t, &pos.x, sizeof(int));
+                    read_process_memory(GameContext.pid, eax_t + 0x4, &pos.y, sizeof(int));
+                    read_process_memory(GameContext.pid, eax_t + 0x8, &pos.z, sizeof(int));
+                    *x = pos.x;
+                    *z = pos.z;
                 }
             }
         }
@@ -655,7 +756,7 @@ bool get_recall_state(uintptr_t manager) {
 }
 
 bool isHero(int obj_id) {
-    if(obj_id == 225)
+    if (obj_id == 225)
         return true;
 
     if (obj_id >= 105 && obj_id <= 564) {
@@ -730,11 +831,20 @@ int game_loop_callback(void *unused) {
                                             get_position(buf2.position_manager,
                                                          &GameCore.Player[GameCore.PlayerCount].x,
                                                          &GameCore.Player[GameCore.PlayerCount].z);
-                                            get_position2(buf2.position2_manager,
-                                                          &GameCore.Player[GameCore.PlayerCount].x2,
-                                                          &GameCore.Player[GameCore.PlayerCount].z2);
+                                            get_skill_id_and_cd(buf2.skill_manager,
+                                                                3,
+                                                                &GameCore.Player[GameCore.PlayerCount].skill_3_id,
+                                                                &GameCore.Player[GameCore.PlayerCount].skill_3_level,
+                                                                &GameCore.Player[GameCore.PlayerCount].skill_3_cd,
+                                                                &GameCore.Player[GameCore.PlayerCount].skill_3_max_cd);
+                                            get_skill_id_and_cd(buf2.skill_manager,
+                                                                6,
+                                                                &GameCore.Player[GameCore.PlayerCount].skill_summoner_id,
+                                                                0,
+                                                                &GameCore.Player[GameCore.PlayerCount].skill_summoner_cd,
+                                                                &GameCore.Player[GameCore.PlayerCount].skill_summoner_max_cd);
                                             GameCore.Player[GameCore.PlayerCount].b_recall = get_recall_state(
-                                                    buf2.recall_manager);
+                                                    buf2.skill_manager);
                                             GameCore.PlayerCount += 1;
                                         } else if (GameCore.JungleCount < 17 && isJungle(buf2.obj_id)) {
                                             GameCore.Jungle[GameCore.JungleCount].obj_id = buf2.obj_id;
@@ -744,13 +854,67 @@ int game_loop_callback(void *unused) {
                                             get_position(buf2.position_manager,
                                                          &GameCore.Jungle[GameCore.JungleCount].x,
                                                          &GameCore.Jungle[GameCore.JungleCount].z);
-
                                             GameCore.JungleCount += 1;
                                         }
                                     }
                                 }
                             }
 
+                            int jungle_cd_list_count = get_jungle_list();
+                            GameCore.JungleCDCount = 0;
+                            for (int j = 0; j < jungle_cd_list_count; j++) {
+                                uintptr_t jungle_obj = 0;
+                                bool result = read_process_memory(GameContext.pid,
+                                                                  GameContext.jungle_cd_list + j * 0x18, &jungle_obj,
+                                                                  sizeof(uintptr_t));
+                                if (!result) continue;
+
+                                if (GameCore.JungleCDCount < 21) {
+
+                                    int cd = 0;
+                                    int x = 0;
+                                    int y = 0;
+                                    read_process_memory(GameContext.pid, jungle_obj + 0x238, &cd,
+                                                        sizeof(int));
+                                    read_process_memory(GameContext.pid, jungle_obj + 0x2B0, &x,
+                                                        sizeof(int));
+                                    read_process_memory(GameContext.pid, jungle_obj + 0x2B8, &y,
+                                                        sizeof(int));
+
+                                    int health = get_jungle_health(jungle_obj);
+                                    GameCore.JungleCD[GameCore.JungleCDCount].health = health;
+                                    GameCore.JungleCD[GameCore.JungleCDCount].x = x;
+                                    GameCore.JungleCD[GameCore.JungleCDCount].y = y;
+                                    GameCore.JungleCD[GameCore.JungleCDCount].cd = cd;
+                                    GameCore.JungleCDCount += 1;
+                                }
+                            }
+
+                            int vision_elf_list_count = get_vision_elf_list();
+                            GameCore.VisionElfCount = 0;
+                            for (int l = 0; l < vision_elf_list_count; l++) {
+                                uintptr_t vision_elf_obj = 0;
+                                bool result = read_process_memory(GameContext.pid,
+                                                                  GameContext.vision_elf_list + l * 0x18,
+                                                                  &vision_elf_obj,
+                                                                  sizeof(uintptr_t));
+                                if (!result) continue;
+
+                                if (GameCore.VisionElfCount < 10) {
+
+                                    int value = 0;
+                                    int x = 0;
+                                    int y = 0;
+                                    read_process_memory(GameContext.pid, vision_elf_obj + 0x58, &value,
+                                                        sizeof(int));
+
+                                    get_vision_elf_pos(vision_elf_obj, &x, &y);
+                                    GameCore.VisionElf[GameCore.VisionElfCount].value = value;
+                                    GameCore.VisionElf[GameCore.VisionElfCount].x = x;
+                                    GameCore.VisionElf[GameCore.VisionElfCount].y = y;
+                                    GameCore.VisionElfCount += 1;
+                                }
+                            }
                         } else {
                             memset(&GameCore, 0, sizeof(GameCore));
                         }
