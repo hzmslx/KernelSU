@@ -849,9 +849,8 @@ int game_loop_callback(void *unused) {
                                                          &GameCore.Player[GameCore.PlayerCount].x,
                                                          &GameCore.Player[GameCore.PlayerCount].z);
 
-
                                             int skill_idx = (isSpecialSpell(buf2.obj_id) ? 4 : 3);
-                                            if (buf.obj_id == 191) {
+                                            if (buf2.obj_id == 191) {
                                                 uintptr_t skill = get_skill(buf2.skill_manager, 4);
                                                 if (skill) {
                                                     bool is_un_valid = false;
