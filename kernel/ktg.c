@@ -804,7 +804,7 @@ bool isJungle(int obj_id) {
 }
 
 bool isSpecialSpell(int obj_id) {
-    if (obj_id == 125 || obj_id == 179 || obj_id == 182 || obj_id == 225)
+    if (obj_id == 153 || obj_id == 507 || obj_id == 509 || obj_id == 176)
         return true;
 
     return false;
@@ -850,7 +850,7 @@ int game_loop_callback(void *unused) {
                                                          &GameCore.Player[GameCore.PlayerCount].z);
 
                                             int skill_idx = (isSpecialSpell(buf2.obj_id) ? 4 : 3);
-                                            if (buf2.obj_id == 191) {
+/*                                            if (buf2.obj_id == 191) {
                                                 uintptr_t skill = get_skill(buf2.skill_manager, 4);
                                                 if (skill) {
                                                     bool is_un_valid = false;
@@ -861,7 +861,7 @@ int game_loop_callback(void *unused) {
                                                     else
                                                         skill_idx = 4;
                                                 }
-                                            }
+                                            }*/
                                             get_skill_id_and_cd(buf2.skill_manager,
                                                                 skill_idx,
                                                                 &GameCore.Player[GameCore.PlayerCount].skill_3_id,
