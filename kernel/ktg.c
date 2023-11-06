@@ -743,6 +743,7 @@ bool get_position2(uintptr_t manager, int *x, int *z) {
         *x = pos.x;
         *z = pos.z;
     }
+
     return result;
 }
 
