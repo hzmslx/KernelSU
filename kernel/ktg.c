@@ -772,10 +772,11 @@ bool isHero(int obj_id) {
 
     if (obj_id >= 105 && obj_id <= 564) {
         if (obj_id == 143 || obj_id == 145 || obj_id == 147 ||
-            obj_id == 151 || (obj_id >= 159 && obj_id <= 161) ||
-            obj_id == 164 || obj_id == 165 || obj_id == 172 ||
-            obj_id == 181 || obj_id == 185 || obj_id == 188 ||
-            (obj_id >= 200 && obj_id <= 311) || (obj_id >= 313 && obj_id <= 500) ||
+            obj_id == 151 || obj_id == 158 || obj_id == 160 ||
+            obj_id == 161 || obj_id == 164 || obj_id == 165 ||
+            obj_id == 172 || obj_id == 181 || obj_id == 185 ||
+            obj_id == 188 || (obj_id >= 200 && obj_id <= 311) ||
+            (obj_id >= 313 && obj_id <= 500) ||
             obj_id == 512 || obj_id == 516 || obj_id == 519 || obj_id == 520 ||
             obj_id == 526 || obj_id == 530 || obj_id == 532 || obj_id == 535 ||
             obj_id == 539 || obj_id == 541 || obj_id == 543 || obj_id == 546 ||
