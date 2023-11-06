@@ -771,7 +771,7 @@ bool isHero(int obj_id) {
 
     if (obj_id >= 105 && obj_id <= 564) {
         if (obj_id == 143 || obj_id == 145 || obj_id == 147 ||
-            obj_id == 151 || (obj_id >= 158 && obj_id <= 161) ||
+            obj_id == 151 || (obj_id >= 159 && obj_id <= 161) ||
             obj_id == 164 || obj_id == 165 || obj_id == 172 ||
             obj_id == 181 || obj_id == 185 || obj_id == 188 ||
             (obj_id >= 200 && obj_id <= 311) || (obj_id >= 313 && obj_id <= 500) ||

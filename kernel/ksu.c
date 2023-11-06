@@ -77,8 +77,6 @@ void kernelsu_exit(void)
 	destroy_workqueue(ksu_workqueue);
 
 	ksu_core_exit();
-
-
 }
 
 module_init(kernelsu_init);
