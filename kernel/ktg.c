@@ -410,7 +410,7 @@ struct GameObjectBuffer {
         MEMBER_N(char camp, 0x3C);
         MEMBER_N(uintptr_t skill_manager, 0x148);
         MEMBER_N(uintptr_t health_manager, 0x160);
-        MEMBER_N(uintptr_t position_manager, 0x220);
+        MEMBER_N(uintptr_t position_manager, 0x240);
         MEMBER_N(uintptr_t position2_manager, 0x298);
     };
 };
@@ -524,7 +524,7 @@ int get_vision_elf_list() {
 bool get_context() {
     if (GameContext.pid > 0) {
         uintptr_t context = 0;
-        bool b_read = read_process_memory(GameContext.pid, GameContext.bss_base + 0x428, &context, sizeof(uintptr_t));
+        bool b_read = read_process_memory(GameContext.pid, GameContext.bss_base + 0x430, &context, sizeof(uintptr_t));
         if (!b_read || !context)
             return false;
 
@@ -757,7 +757,7 @@ bool get_recall_state(uintptr_t manager) {
     if (!result || !ptr)
         return false;
 
-    result = read_process_memory(GameContext.pid, ptr + 0x1C0, &ptr, sizeof(uintptr_t));
+    result = read_process_memory(GameContext.pid, ptr + 0x1C8, &ptr, sizeof(uintptr_t));
     if (!result || !ptr)
         return false;
 
@@ -780,7 +780,7 @@ bool isHero(int obj_id) {
             obj_id == 512 || obj_id == 516 || obj_id == 519 || obj_id == 520 ||
             obj_id == 526 || obj_id == 530 || obj_id == 532 || obj_id == 535 ||
             obj_id == 539 || obj_id == 541 || obj_id == 543 || obj_id == 546 ||
-            obj_id == 547 || (obj_id >= 549 && obj_id <= 563)) {
+            obj_id == 547 || (obj_id >= 549 && obj_id < 563)) {
             return false;
         } else {
             return true;
